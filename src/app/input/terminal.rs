@@ -17,6 +17,59 @@ fn is_modifier_only_key(code: &KeyCode) -> bool {
     matches!(code, KeyCode::Modifier(_))
 }
 
+fn is_direct_pane_focus_action(action: super::navigate::NavigateAction) -> bool {
+    matches!(
+        action,
+        super::navigate::NavigateAction::FocusPaneLeft
+            | super::navigate::NavigateAction::FocusPaneDown
+            | super::navigate::NavigateAction::FocusPaneUp
+            | super::navigate::NavigateAction::FocusPaneRight
+    )
+}
+
+fn normalized_process_basename(value: &str) -> String {
+    value
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(value)
+        .trim_start_matches('-')
+        .to_ascii_lowercase()
+}
+
+fn process_matches_smart_pane_navigation(
+    process: &crate::platform::ForegroundProcess,
+    configured_names: &[String],
+) -> bool {
+    if configured_names.is_empty() {
+        return false;
+    }
+
+    let configured = configured_names
+        .iter()
+        .map(|name| normalized_process_basename(name))
+        .collect::<std::collections::HashSet<_>>();
+
+    std::iter::once(process.name.as_str())
+        .chain(process.argv0.as_deref())
+        .chain(
+            process
+                .argv
+                .as_deref()
+                .and_then(|argv| argv.first().map(String::as_str)),
+        )
+        .map(normalized_process_basename)
+        .any(|candidate| configured.contains(&candidate))
+}
+
+fn foreground_job_matches_smart_pane_navigation(
+    job: &crate::platform::ForegroundJob,
+    configured_names: &[String],
+) -> bool {
+    job.processes
+        .iter()
+        .any(|process| process_matches_smart_pane_navigation(process, configured_names))
+}
+
 impl App {
     pub(crate) fn handle_terminal_key_headless(&mut self, key: TerminalKey) {
         let Some(input) = self.prepare_terminal_key_forward(key) else {
@@ -34,41 +87,57 @@ impl App {
 
         let key_event = key.as_key_event();
 
-        if let Some(action) = super::terminal_direct_navigation_action(&self.state, key) {
-            debug!(
-                code = ?key_event.code,
-                modifiers = ?key_event.modifiers,
-                kind = ?key_event.kind,
-                action = ?action,
-                "intercepted terminal direct keybinding before forwarding to pane"
-            );
-            if action == super::navigate::NavigateAction::EditScrollback {
-                self.launch_focused_scrollback_editor();
+        let smart_navigation_forwarded =
+            if let Some(action) = super::terminal_direct_navigation_action(&self.state, key) {
+                if self.should_forward_smart_pane_navigation_key(action) {
+                    debug!(
+                        code = ?key_event.code,
+                        modifiers = ?key_event.modifiers,
+                        kind = ?key_event.kind,
+                        action = ?action,
+                        "forwarding terminal direct pane navigation key to smart navigation process"
+                    );
+                    true
+                } else {
+                    debug!(
+                        code = ?key_event.code,
+                        modifiers = ?key_event.modifiers,
+                        kind = ?key_event.kind,
+                        action = ?action,
+                        "intercepted terminal direct keybinding before forwarding to pane"
+                    );
+                    if action == super::navigate::NavigateAction::EditScrollback {
+                        self.launch_focused_scrollback_editor();
+                    } else {
+                        super::navigate::execute_navigate_action_in_context(
+                            &mut self.state,
+                            &mut self.terminal_runtimes,
+                            action,
+                            super::navigate::ActionContext::Direct,
+                        );
+                    }
+                    return None;
+                }
             } else {
-                super::navigate::execute_navigate_action_in_context(
-                    &mut self.state,
-                    &mut self.terminal_runtimes,
-                    action,
-                    super::navigate::ActionContext::Direct,
-                );
-            }
-            return None;
-        }
+                false
+            };
 
-        if let Some(binding) = super::navigate::command_for_key(
-            &self.state,
-            key,
-            super::navigate::BindingDispatch::Direct,
-        ) {
-            debug!(
-                code = ?key_event.code,
-                modifiers = ?key_event.modifiers,
-                kind = ?key_event.kind,
-                command = %binding.label,
-                "intercepted terminal direct custom command before forwarding to pane"
-            );
-            self.launch_custom_command(binding, super::navigate::ActionContext::Direct);
-            return None;
+        if !smart_navigation_forwarded {
+            if let Some(binding) = super::navigate::command_for_key(
+                &self.state,
+                key,
+                super::navigate::BindingDispatch::Direct,
+            ) {
+                debug!(
+                    code = ?key_event.code,
+                    modifiers = ?key_event.modifiers,
+                    kind = ?key_event.kind,
+                    command = %binding.label,
+                    "intercepted terminal direct custom command before forwarding to pane"
+                );
+                self.launch_custom_command(binding, super::navigate::ActionContext::Direct);
+                return None;
+            }
         }
 
         if self.state.is_prefix_key(key) {
@@ -182,6 +251,42 @@ impl App {
         })
     }
 
+    fn should_forward_smart_pane_navigation_key(
+        &self,
+        action: super::navigate::NavigateAction,
+    ) -> bool {
+        if !self.state.smart_pane_navigation || !is_direct_pane_focus_action(action) {
+            return false;
+        }
+
+        let Some(ws_idx) = self.state.active else {
+            return false;
+        };
+        let Some(ws) = self.state.workspaces.get(ws_idx) else {
+            return false;
+        };
+        let Some(pane_id) = ws.focused_pane_id() else {
+            return false;
+        };
+        let Some(runtime) =
+            self.state
+                .runtime_for_pane_in_workspace(&self.terminal_runtimes, ws_idx, pane_id)
+        else {
+            return false;
+        };
+        let Some(shell_pid) = runtime.child_pid() else {
+            return false;
+        };
+        let Some(job) = crate::detect::foreground_job(shell_pid) else {
+            return false;
+        };
+
+        foreground_job_matches_smart_pane_navigation(
+            &job,
+            &self.state.smart_pane_navigation_processes,
+        )
+    }
+
     pub(super) async fn handle_terminal_key(&mut self, key: TerminalKey) {
         let Some(input) = self.prepare_terminal_key_forward(key) else {
             return;
@@ -251,6 +356,56 @@ mod tests {
             AppEvent::ClipboardWrite { content } => content,
             event => panic!("unexpected event: {event:?}"),
         }
+    }
+
+    fn foreground_process(
+        name: &str,
+        argv0: Option<&str>,
+        argv: Option<Vec<&str>>,
+    ) -> crate::platform::ForegroundProcess {
+        crate::platform::ForegroundProcess {
+            pid: 42,
+            name: name.to_string(),
+            argv0: argv0.map(str::to_string),
+            argv: argv.map(|parts| parts.into_iter().map(str::to_string).collect()),
+            cmdline: None,
+        }
+    }
+
+    #[test]
+    fn smart_pane_navigation_matches_process_basename_candidates() {
+        let names = vec!["nvim".to_string(), "vimdiff".to_string()];
+
+        assert!(process_matches_smart_pane_navigation(
+            &foreground_process("nvim", None, None),
+            &names
+        ));
+        assert!(process_matches_smart_pane_navigation(
+            &foreground_process("zsh", Some("/opt/homebrew/bin/nvim"), None),
+            &names
+        ));
+        assert!(process_matches_smart_pane_navigation(
+            &foreground_process("env", None, Some(vec!["/usr/bin/vimdiff", "a", "b"])),
+            &names
+        ));
+        assert!(process_matches_smart_pane_navigation(
+            &foreground_process("-nvim", None, None),
+            &names
+        ));
+    }
+
+    #[test]
+    fn smart_pane_navigation_rejects_unconfigured_processes() {
+        let names = vec!["nvim".to_string()];
+
+        assert!(!process_matches_smart_pane_navigation(
+            &foreground_process("ssh", None, None),
+            &names
+        ));
+        assert!(!process_matches_smart_pane_navigation(
+            &foreground_process("nvim", None, None),
+            &[]
+        ));
     }
 
     fn assert_visible_selection(app: &App) {

@@ -26,6 +26,7 @@ pub enum IntegrationTarget {
     Hermes,
     Qodercli,
     Cursor,
+    Neovim,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

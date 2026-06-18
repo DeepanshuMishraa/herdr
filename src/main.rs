@@ -142,6 +142,12 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # "current" for Herdr's process directory, or a fixed path such as "~/Projects".
 # new_cwd = "follow"
 
+# When direct focus_pane_* keys are pressed while Vim/Neovim is in the focused pane,
+# forward the key to the editor so an editor-side mapping can move between splits
+# and call `herdr pane focus` only at split edges.
+# smart_pane_navigation = true
+# smart_pane_navigation_processes = ["vim", "nvim", "view", "gvim", "vimdiff", "nvimdiff", "nvim-qt"]
+
 [update]
 # Update channel used by background checks and `herdr update`.
 # Use "stable" for normal releases or "preview" for opt-in preview builds.

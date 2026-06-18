@@ -178,6 +178,14 @@ resize_mode = "prefix+r"
 toggle_sidebar = "prefix+b"
 ```
 
+Direct pane-focus keys use smart Vim/Neovim routing by default. When the focused pane's foreground process matches `[terminal] smart_pane_navigation_processes`, Herdr forwards direct `focus_pane_left`, `focus_pane_down`, `focus_pane_up`, and `focus_pane_right` keys into the pane instead of changing Herdr focus. An editor-side mapping can then move inside editor splits first and call `herdr pane focus --direction ...` only when the editor is already at an edge.
+
+```toml
+[terminal]
+smart_pane_navigation = true
+smart_pane_navigation_processes = ["vim", "nvim", "view", "gvim", "vimdiff", "nvimdiff", "nvim-qt"]
+```
+
 Optional actions are unset by default. Bind them with `prefix+` for prefix-mode behavior, or with an explicit modified chord when you intentionally want a direct shortcut:
 
 ```toml

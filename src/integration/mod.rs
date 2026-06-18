@@ -2,7 +2,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 #[cfg(test)]
-use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::sync::MutexGuard;
 
 use portable_pty::CommandBuilder;
 use serde_json::{json, Map, Value};
@@ -10,6 +10,7 @@ use serde_json::{json, Map, Value};
 pub(crate) const HERDR_PANE_ID_ENV_VAR: &str = "HERDR_PANE_ID";
 pub(crate) const HERDR_TAB_ID_ENV_VAR: &str = "HERDR_TAB_ID";
 pub(crate) const HERDR_WORKSPACE_ID_ENV_VAR: &str = "HERDR_WORKSPACE_ID";
+const HERDR_BIN_PATH_ENV_VAR: &str = "HERDR_BIN_PATH";
 const PI_EXTENSION_INSTALL_NAME: &str = "herdr-agent-state.ts";
 const PI_EXTENSION_ASSET: &str = include_str!("assets/pi/herdr-agent-state.ts");
 const PI_INTEGRATION_VERSION: u32 = 2;
@@ -177,6 +178,9 @@ const CURSOR_HOOK_INSTALL_NAME: &str = "herdr-agent-state.sh";
 const CURSOR_HOOK_ASSET: &str = include_str!("assets/cursor/herdr-agent-state.sh");
 const CURSOR_INTEGRATION_VERSION: u32 = 1;
 const CURSOR_CONFIG_DIR_ENV_VAR: &str = "CURSOR_CONFIG_DIR";
+const NEOVIM_PLUGIN_INSTALL_NAME: &str = "herdr-navigator.lua";
+const NEOVIM_PLUGIN_ASSET: &str = include_str!("assets/neovim/herdr-navigator.lua");
+const NEOVIM_INTEGRATION_VERSION: u32 = 5;
 const INTEGRATION_VERSION_MARKER: &str = "HERDR_INTEGRATION_VERSION=";
 
 #[derive(Debug)]
@@ -250,6 +254,17 @@ pub(crate) struct QodercliInstallPaths {
 pub(crate) struct CursorInstallPaths {
     pub hook_path: PathBuf,
     pub hooks_path: PathBuf,
+}
+
+#[derive(Debug)]
+pub(crate) struct NeovimInstallPaths {
+    pub plugin_path: PathBuf,
+}
+
+#[derive(Debug)]
+pub(crate) struct NeovimUninstallResult {
+    pub plugin_path: PathBuf,
+    pub removed_plugin: bool,
 }
 
 #[derive(Debug)]
@@ -395,6 +410,9 @@ pub(crate) struct HermesUninstallResult {
 
 pub(crate) fn apply_pane_base_env(cmd: &mut CommandBuilder) {
     cmd.env(crate::api::SOCKET_PATH_ENV_VAR, crate::api::socket_path());
+    if let Ok(current_exe) = std::env::current_exe() {
+        cmd.env(HERDR_BIN_PATH_ENV_VAR, current_exe);
+    }
 }
 
 pub(crate) const INSTALL_WARNING_PREFIX: &str = "warning:";
@@ -658,6 +676,13 @@ fn install_target_inner(target: crate::api::schema::IntegrationTarget) -> io::Re
                 ),
                 format!("updated cursor hooks at {}", installed.hooks_path.display()),
             ]
+        }
+        crate::api::schema::IntegrationTarget::Neovim => {
+            let installed = install_neovim()?;
+            vec![format!(
+                "installed neovim navigator plugin to {}",
+                installed.plugin_path.display()
+            )]
         }
     };
 
@@ -986,6 +1011,20 @@ pub(crate) fn uninstall_target(
             }
             messages
         }
+        crate::api::schema::IntegrationTarget::Neovim => {
+            let result = uninstall_neovim()?;
+            if result.removed_plugin {
+                vec![format!(
+                    "removed neovim navigator plugin at {}",
+                    result.plugin_path.display()
+                )]
+            } else {
+                vec![format!(
+                    "no neovim navigator plugin found at {}",
+                    result.plugin_path.display()
+                )]
+            }
+        }
     };
 
     crate::logging::integration_action("uninstall", integration_target_label(target), "ok");
@@ -1009,6 +1048,7 @@ pub(crate) fn integration_target_label(
         crate::api::schema::IntegrationTarget::Hermes => "hermes",
         crate::api::schema::IntegrationTarget::Qodercli => "qodercli",
         crate::api::schema::IntegrationTarget::Cursor => "cursor",
+        crate::api::schema::IntegrationTarget::Neovim => "neovim",
     }
 }
 
@@ -1033,6 +1073,7 @@ fn integration_target_command_names(
         crate::api::schema::IntegrationTarget::Hermes => &["hermes"],
         crate::api::schema::IntegrationTarget::Qodercli => qodercli_command_names(),
         crate::api::schema::IntegrationTarget::Cursor => cursor_command_names(),
+        crate::api::schema::IntegrationTarget::Neovim => &["nvim"],
     }
 }
 
@@ -1237,7 +1278,7 @@ fn integration_specs() -> [(
     crate::api::schema::IntegrationTarget,
     io::Result<PathBuf>,
     u32,
-); 13] {
+); 14] {
     [
         (
             crate::api::schema::IntegrationTarget::Pi,
@@ -1303,6 +1344,11 @@ fn integration_specs() -> [(
             crate::api::schema::IntegrationTarget::Cursor,
             cursor_dir().map(|dir| dir.join(CURSOR_HOOK_INSTALL_NAME)),
             CURSOR_INTEGRATION_VERSION,
+        ),
+        (
+            crate::api::schema::IntegrationTarget::Neovim,
+            neovim_dir().map(|dir| dir.join("plugin").join(NEOVIM_PLUGIN_INSTALL_NAME)),
+            NEOVIM_INTEGRATION_VERSION,
         ),
     ]
 }
@@ -1383,6 +1429,7 @@ fn parse_integration_version(content: &str) -> Option<u32> {
             .trim()
             .trim_start_matches('/')
             .trim_start_matches('#')
+            .trim_start_matches('-')
             .trim();
         marker_line
             .strip_prefix(INTEGRATION_VERSION_MARKER)?
@@ -1881,6 +1928,24 @@ pub(crate) fn install_hermes() -> io::Result<HermesInstallPaths> {
     })
 }
 
+pub(crate) fn install_neovim() -> io::Result<NeovimInstallPaths> {
+    let dir = neovim_dir()?;
+    if !dir.is_dir() {
+        return Err(io::Error::other(format!(
+            "neovim config directory not found at {}. create it or install neovim first",
+            dir.display()
+        )));
+    }
+
+    let plugin_dir = dir.join("plugin");
+    fs::create_dir_all(&plugin_dir)?;
+
+    let plugin_path = plugin_dir.join(NEOVIM_PLUGIN_INSTALL_NAME);
+    fs::write(&plugin_path, NEOVIM_PLUGIN_ASSET)?;
+
+    Ok(NeovimInstallPaths { plugin_path })
+}
+
 pub(crate) fn uninstall_pi() -> io::Result<PiUninstallResult> {
     let extension_path = pi_extension_dir()?.join(PI_EXTENSION_INSTALL_NAME);
     let removed_extension = remove_file_if_exists(&extension_path)?;
@@ -2239,6 +2304,18 @@ pub(crate) fn uninstall_hermes() -> io::Result<HermesUninstallResult> {
         config_path,
         removed_plugin_dir,
         updated_config,
+    })
+}
+
+pub(crate) fn uninstall_neovim() -> io::Result<NeovimUninstallResult> {
+    let plugin_path = neovim_dir()?
+        .join("plugin")
+        .join(NEOVIM_PLUGIN_INSTALL_NAME);
+    let removed_plugin = remove_file_if_exists(&plugin_path)?;
+
+    Ok(NeovimUninstallResult {
+        plugin_path,
+        removed_plugin,
     })
 }
 
@@ -3455,6 +3532,14 @@ fn cursor_dir() -> io::Result<PathBuf> {
     config_dir_from_env_or_home(CURSOR_CONFIG_DIR_ENV_VAR, &[".cursor"])
 }
 
+fn neovim_dir() -> io::Result<PathBuf> {
+    if let Some(value) = std::env::var_os("XDG_CONFIG_HOME").filter(|value| !value.is_empty()) {
+        return Ok(PathBuf::from(value).join("nvim"));
+    }
+
+    Ok(home_dir()?.join(".config").join("nvim"))
+}
+
 fn home_dir() -> io::Result<PathBuf> {
     if let Some(home) = std::env::var_os("HOME").filter(|value| !value.is_empty()) {
         return Ok(PathBuf::from(home));
@@ -3482,8 +3567,7 @@ fn home_dir() -> io::Result<PathBuf> {
 
 #[cfg(test)]
 pub(crate) fn integration_env_lock() -> MutexGuard<'static, ()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    crate::config::test_config_env_lock().lock().unwrap()
 }
 
 #[cfg(test)]
@@ -3512,6 +3596,14 @@ mod tests {
         assert!(old < min);
         assert!(min <= min);
         assert!(min < new);
+    }
+
+    #[test]
+    fn parse_integration_version_accepts_lua_comment_markers() {
+        assert_eq!(
+            parse_integration_version("-- HERDR_INTEGRATION_VERSION=7\n"),
+            Some(7)
+        );
     }
 
     #[test]
@@ -5682,6 +5774,76 @@ mod tests {
         let err = install_kilo().unwrap_err().to_string();
 
         assert!(err.contains("kilo config directory not found"));
+
+        std::env::remove_var("HOME");
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn install_neovim_writes_plugin_to_xdg_config_plugin_dir() {
+        let _lock = integration_env_lock();
+        let base = unique_base();
+        let xdg_config = base.join("config");
+        let nvim_dir = xdg_config.join("nvim");
+        fs::create_dir_all(&nvim_dir).unwrap();
+        std::env::set_var("XDG_CONFIG_HOME", &xdg_config);
+
+        let installed = install_neovim().unwrap();
+        let plugin_content = fs::read_to_string(&installed.plugin_path).unwrap();
+
+        assert_eq!(
+            installed.plugin_path,
+            nvim_dir.join("plugin").join(NEOVIM_PLUGIN_INSTALL_NAME)
+        );
+        assert_eq!(plugin_content, NEOVIM_PLUGIN_ASSET);
+        let status = integration_status_at(
+            crate::api::schema::IntegrationTarget::Neovim,
+            installed.plugin_path.clone(),
+            NEOVIM_INTEGRATION_VERSION,
+        );
+        assert_eq!(status.state, IntegrationStatusKind::Current);
+        assert_eq!(status.installed_version, Some(NEOVIM_INTEGRATION_VERSION));
+
+        std::env::remove_var("XDG_CONFIG_HOME");
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn uninstall_neovim_removes_plugin_when_present() {
+        let _lock = integration_env_lock();
+        let base = unique_base();
+        let home = base.join("home");
+        let plugin_dir = home.join(".config/nvim/plugin");
+        fs::create_dir_all(&plugin_dir).unwrap();
+        fs::write(
+            plugin_dir.join(NEOVIM_PLUGIN_INSTALL_NAME),
+            NEOVIM_PLUGIN_ASSET,
+        )
+        .unwrap();
+        std::env::set_var("HOME", &home);
+        std::env::remove_var("XDG_CONFIG_HOME");
+
+        let result = uninstall_neovim().unwrap();
+
+        assert!(result.removed_plugin);
+        assert!(!result.plugin_path.exists());
+
+        std::env::remove_var("HOME");
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn install_neovim_errors_when_config_dir_missing() {
+        let _lock = integration_env_lock();
+        let base = unique_base();
+        let home = base.join("home");
+        fs::create_dir_all(&home).unwrap();
+        std::env::set_var("HOME", &home);
+        std::env::remove_var("XDG_CONFIG_HOME");
+
+        let err = install_neovim().unwrap_err().to_string();
+
+        assert!(err.contains("neovim config directory not found"));
 
         std::env::remove_var("HOME");
         let _ = fs::remove_dir_all(base);

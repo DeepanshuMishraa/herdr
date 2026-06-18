@@ -601,6 +601,11 @@ impl App {
             default_shell: config.terminal.default_shell.clone(),
             shell_mode: config.terminal.shell_mode,
             new_terminal_cwd: config.terminal.new_cwd.clone(),
+            smart_pane_navigation: config.terminal.smart_pane_navigation,
+            smart_pane_navigation_processes: config
+                .terminal
+                .smart_pane_navigation_processes
+                .clone(),
             pane_scrollback_limit_bytes: config.advanced.scrollback_limit_bytes,
             accent: crate::config::parse_color(&config.ui.accent),
             sound: config.ui.sound.clone(),
@@ -1348,6 +1353,9 @@ impl App {
             self.state.default_shell = config.terminal.default_shell.clone();
             self.state.shell_mode = config.terminal.shell_mode;
             self.state.new_terminal_cwd = config.terminal.new_cwd.clone();
+            self.state.smart_pane_navigation = config.terminal.smart_pane_navigation;
+            self.state.smart_pane_navigation_processes =
+                config.terminal.smart_pane_navigation_processes.clone();
         }
 
         if !invalid_section("worktrees") {

@@ -99,6 +99,22 @@ split_horizontal = ["prefix+minus", "ctrl+alt+shift+d"]
 zoom = ["prefix+z", "ctrl+alt+z"]
 ```
 
+For Vim/Neovim-style split navigation, bind direct pane focus keys and install the Neovim navigator integration. The editor mapping moves between Neovim splits first and falls through to Herdr at split edges.
+
+```toml
+[keys]
+focus_pane_left = ["prefix+h", "ctrl+h"]
+focus_pane_down = ["prefix+j", "ctrl+j"]
+focus_pane_up = ["prefix+k", "ctrl+k"]
+focus_pane_right = ["prefix+l", "ctrl+l"]
+```
+
+```bash
+herdr integration install neovim
+```
+
+Herdr forwards these direct pane-focus keys into Vim/Neovim by default when it is the foreground process. Disable that with `[terminal] smart_pane_navigation = false`, or adjust `[terminal] smart_pane_navigation_processes` if you use a wrapped editor executable. In Neovim, set `vim.g.herdr_navigator_no_mappings = 1` before the plugin loads if you want to define your own mappings.
+
 A few `ctrl+alt` chords are taken elsewhere. Avoid these:
 
 | Chord | Owned by |

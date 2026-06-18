@@ -207,7 +207,7 @@ pub enum ShellModeConfig {
     NonLogin,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(default)]
 pub struct TerminalConfig {
     /// Executable used for new interactive panes. Empty means SHELL, then /bin/sh.
@@ -216,6 +216,11 @@ pub struct TerminalConfig {
     pub shell_mode: ShellModeConfig,
     /// CWD policy for new interactive panes, tabs, and workspaces.
     pub new_cwd: NewTerminalCwdConfig,
+    /// Forward direct pane-focus keys into Vim-like foreground processes so
+    /// editor split navigation can fall through to Herdr at pane edges.
+    pub smart_pane_navigation: bool,
+    /// Foreground process basenames that receive smart pane navigation keys.
+    pub smart_pane_navigation_processes: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -232,6 +237,27 @@ impl Default for SessionConfig {
             resume_agents_on_restore: true,
         }
     }
+}
+
+impl Default for TerminalConfig {
+    fn default() -> Self {
+        Self {
+            default_shell: String::new(),
+            shell_mode: ShellModeConfig::Auto,
+            new_cwd: NewTerminalCwdConfig::Follow,
+            smart_pane_navigation: true,
+            smart_pane_navigation_processes: default_smart_pane_navigation_processes(),
+        }
+    }
+}
+
+pub fn default_smart_pane_navigation_processes() -> Vec<String> {
+    [
+        "vim", "nvim", "view", "gvim", "vimdiff", "nvimdiff", "nvim-qt",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -746,15 +772,27 @@ channel = "preview"
         let default_config = Config::default();
         assert!(default_config.terminal.default_shell.is_empty());
         assert_eq!(default_config.terminal.shell_mode, ShellModeConfig::Auto);
+        assert!(default_config.terminal.smart_pane_navigation);
+        assert!(default_config
+            .terminal
+            .smart_pane_navigation_processes
+            .contains(&"nvim".to_string()));
 
         let toml = r#"
 [terminal]
 default_shell = "nu"
 shell_mode = "non_login"
+smart_pane_navigation = false
+smart_pane_navigation_processes = ["helix"]
 "#;
         let config: Config = toml::from_str(toml).unwrap();
         assert_eq!(config.terminal.default_shell, "nu");
         assert_eq!(config.terminal.shell_mode, ShellModeConfig::NonLogin);
+        assert!(!config.terminal.smart_pane_navigation);
+        assert_eq!(
+            config.terminal.smart_pane_navigation_processes,
+            vec!["helix".to_string()]
+        );
     }
 
     #[test]
