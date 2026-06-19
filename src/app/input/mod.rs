@@ -266,6 +266,12 @@ impl App {
                     SettingsAction::SaveToastDelivery(delivery) => {
                         self.save_toast_delivery(delivery)
                     }
+                    SettingsAction::SaveSharedPaneBorders(enabled) => {
+                        self.save_shared_pane_borders(enabled)
+                    }
+                    SettingsAction::SaveThickFocusedPaneBorder(enabled) => {
+                        self.save_thick_focused_pane_border(enabled)
+                    }
                     SettingsAction::SaveAgentBorderLabels(enabled) => {
                         self.save_agent_border_labels(enabled)
                     }

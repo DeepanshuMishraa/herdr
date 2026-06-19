@@ -467,6 +467,10 @@ pub struct UiConfig {
     pub confirm_close: bool,
     /// Ask for a tab name before creating a new tab. Default: true.
     pub prompt_new_tab_name: bool,
+    /// Share one border cell between adjacent panes. Default: false.
+    pub shared_pane_borders: bool,
+    /// Draw the focused pane border with thick glyphs in terminal mode. Default: true.
+    pub thick_focused_pane_border: bool,
     /// Show agent labels in split pane borders when no manual pane label is set. Default: false.
     pub show_agent_labels_on_pane_borders: bool,
     /// Agent sidebar ordering. Saved values are "spaces" or "priority". Default: "spaces".
@@ -655,6 +659,8 @@ impl Default for UiConfig {
             mouse_scroll_lines: None,
             confirm_close: true,
             prompt_new_tab_name: true,
+            shared_pane_borders: false,
+            thick_focused_pane_border: true,
             show_agent_labels_on_pane_borders: false,
             agent_panel_sort: AgentPanelSortConfig::Spaces,
             accent: "cyan".into(),
@@ -878,6 +884,24 @@ show_agent_labels_on_pane_borders = true
 "#;
         let config: Config = toml::from_str(toml).unwrap();
         assert!(config.ui.show_agent_labels_on_pane_borders);
+    }
+
+    #[test]
+    fn pane_border_layout_defaults_preserve_legacy_behavior_and_parse() {
+        let default_config = Config::default();
+        assert!(!default_config.ui.shared_pane_borders);
+        assert!(default_config.ui.thick_focused_pane_border);
+
+        let config: Config = toml::from_str(
+            r#"
+[ui]
+shared_pane_borders = true
+thick_focused_pane_border = false
+"#,
+        )
+        .unwrap();
+        assert!(config.ui.shared_pane_borders);
+        assert!(!config.ui.thick_focused_pane_border);
     }
 
     #[test]

@@ -92,6 +92,22 @@ impl App {
         }
     }
 
+    pub(super) fn save_shared_pane_borders(&mut self, enabled: bool) {
+        if self.update_config_file("shared pane borders", |content| {
+            crate::config::upsert_section_bool(content, "ui", "shared_pane_borders", enabled)
+        }) {
+            self.apply_config_from_disk(false);
+        }
+    }
+
+    pub(super) fn save_thick_focused_pane_border(&mut self, enabled: bool) {
+        if self.update_config_file("focused pane border", |content| {
+            crate::config::upsert_section_bool(content, "ui", "thick_focused_pane_border", enabled)
+        }) {
+            self.apply_config_from_disk(false);
+        }
+    }
+
     pub(super) fn save_pane_history_persistence(&mut self, enabled: bool) {
         if self.update_config_file("pane screen history", |content| {
             crate::config::upsert_section_bool(content, "experimental", "pane_history", enabled)

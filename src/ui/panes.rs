@@ -10,12 +10,20 @@ use super::scrollbar::{render_pane_scrollbar, should_show_scrollbar};
 use super::widgets::panel_contrast_fg;
 use crate::app::state::Palette;
 use crate::app::{AppState, Mode};
-use crate::layout::PaneInfo;
+use crate::layout::{PaneFrameLayout, PaneInfo};
 use crate::terminal::{TerminalRuntime, TerminalRuntimeRegistry};
 
 pub(crate) fn pane_is_scrolled_back(rt: &TerminalRuntime) -> bool {
     rt.scroll_metrics()
         .is_some_and(|metrics| metrics.offset_from_bottom > 0)
+}
+
+fn pane_frame_layout(app: &AppState) -> PaneFrameLayout {
+    if app.shared_pane_borders {
+        PaneFrameLayout::Shared
+    } else {
+        PaneFrameLayout::Independent
+    }
 }
 
 fn truncate_label(text: &str, max_width: usize) -> String {
@@ -33,7 +41,7 @@ fn truncate_label(text: &str, max_width: usize) -> String {
     format!("{prefix}…")
 }
 
-fn pane_border_title(label: &str, pane_width: u16) -> Option<String> {
+pub(super) fn pane_border_title(label: &str, pane_width: u16) -> Option<String> {
     let label = label.trim();
     if label.is_empty() || pane_width <= 4 {
         return None;
@@ -124,7 +132,10 @@ pub(super) fn resize_tab_panes(
         return;
     }
 
-    for info in tab.layout.panes(area) {
+    for info in tab
+        .layout
+        .panes_with_frame_layout(area, pane_frame_layout(app))
+    {
         let pane_inner = if multi_pane {
             Block::default().borders(Borders::ALL).inner(info.rect)
         } else {
@@ -192,11 +203,14 @@ pub(super) fn compute_pane_infos(
         }];
     }
 
-    let mut pane_infos = ws.layout.panes(area);
+    let mut pane_infos = ws
+        .layout
+        .panes_with_frame_layout(area, pane_frame_layout(app));
 
     for info in &mut pane_infos {
         let pane_inner = if multi_pane {
-            let border_set = if info.is_focused && terminal_active {
+            let border_set = if info.is_focused && terminal_active && app.thick_focused_pane_border
+            {
                 ratatui::symbols::border::THICK
             } else {
                 ratatui::symbols::border::PLAIN
@@ -252,25 +266,36 @@ pub(super) fn render_panes(
     let multi_pane = ws.layout.pane_count() > 1;
     let terminal_active = app.mode == Mode::Terminal;
 
+    if multi_pane && app.shared_pane_borders {
+        super::pane_frames::render_shared_pane_frames(
+            app,
+            ws_idx,
+            frame,
+            &app.view.pane_infos,
+            terminal_active,
+        );
+    }
+
     for info in &app.view.pane_infos {
         if let Some(rt) = app.runtime_for_pane_in_workspace(terminal_runtimes, ws_idx, info.id) {
-            if multi_pane {
-                let (border_style, border_set) = if info.is_focused && terminal_active {
-                    (
-                        Style::default().fg(app.palette.accent),
-                        ratatui::symbols::border::THICK,
-                    )
-                } else if info.is_focused {
-                    (
-                        Style::default().fg(app.palette.accent),
-                        ratatui::symbols::border::PLAIN,
-                    )
-                } else {
-                    (
-                        Style::default().fg(app.palette.overlay0),
-                        ratatui::symbols::border::PLAIN,
-                    )
-                };
+            if multi_pane && !app.shared_pane_borders {
+                let (border_style, border_set) =
+                    if info.is_focused && terminal_active && app.thick_focused_pane_border {
+                        (
+                            Style::default().fg(app.palette.accent),
+                            ratatui::symbols::border::THICK,
+                        )
+                    } else if info.is_focused {
+                        (
+                            Style::default().fg(app.palette.accent),
+                            ratatui::symbols::border::PLAIN,
+                        )
+                    } else {
+                        (
+                            Style::default().fg(app.palette.overlay0),
+                            ratatui::symbols::border::PLAIN,
+                        )
+                    };
 
                 let mut block = Block::default()
                     .borders(Borders::ALL)
@@ -525,6 +550,55 @@ mod tests {
         assert_eq!(pane_border_title("", 20), None);
         assert_eq!(pane_border_title("abcdef", 8).as_deref(), Some(" abc… "));
         assert_eq!(pane_border_title("abcdef", 4), None);
+    }
+
+    #[tokio::test]
+    async fn legacy_multi_pane_geometry_keeps_independent_full_frames() {
+        let mut app = AppState::test_new();
+        let mut workspace = Workspace::test_new("test");
+        workspace.test_split(ratatui::layout::Direction::Horizontal);
+        app.workspaces = vec![workspace];
+        app.active = Some(0);
+
+        let infos = compute_pane_infos(
+            &app,
+            &TerminalRuntimeRegistry::new(),
+            Rect::new(0, 0, 20, 10),
+            false,
+            crate::kitty_graphics::HostCellSize::default(),
+        );
+
+        assert_eq!(infos.len(), 2);
+        assert_eq!(infos[0].rect, Rect::new(0, 0, 10, 10));
+        assert_eq!(infos[0].inner_rect, Rect::new(1, 1, 8, 8));
+        assert_eq!(infos[1].rect, Rect::new(10, 0, 10, 10));
+        assert_eq!(infos[1].inner_rect, Rect::new(11, 1, 8, 8));
+        assert_eq!(infos[0].rect.right(), infos[1].rect.left());
+    }
+
+    #[tokio::test]
+    async fn shared_multi_pane_geometry_uses_one_separator_cell() {
+        let mut app = AppState::test_new();
+        app.shared_pane_borders = true;
+        let mut workspace = Workspace::test_new("test");
+        workspace.test_split(ratatui::layout::Direction::Horizontal);
+        app.workspaces = vec![workspace];
+        app.active = Some(0);
+
+        let infos = compute_pane_infos(
+            &app,
+            &TerminalRuntimeRegistry::new(),
+            Rect::new(0, 0, 20, 10),
+            false,
+            crate::kitty_graphics::HostCellSize::default(),
+        );
+
+        assert_eq!(infos.len(), 2);
+        assert_eq!(infos[0].rect, Rect::new(0, 0, 11, 10));
+        assert_eq!(infos[0].inner_rect, Rect::new(1, 1, 9, 8));
+        assert_eq!(infos[1].rect, Rect::new(10, 0, 10, 10));
+        assert_eq!(infos[1].inner_rect, Rect::new(11, 1, 8, 8));
+        assert_eq!(infos[0].rect.right() - 1, infos[1].rect.left());
     }
 
     #[tokio::test]

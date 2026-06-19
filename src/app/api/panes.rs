@@ -15,7 +15,7 @@ use crate::api::schema::{
 };
 use crate::app::actions::{PaneZoomCommand, PaneZoomNoopReason};
 use crate::app::{App, Mode};
-use crate::layout::{find_in_direction, NavDirection, PaneId};
+use crate::layout::{find_in_direction, NavDirection, PaneFrameLayout, PaneId};
 
 use super::super::api_helpers::{
     detect_state_from_api, encode_api_keys, encode_api_text, normalize_custom_status,
@@ -282,9 +282,14 @@ impl App {
             return encode_error(id, "pane_layout_unavailable", "pane layout unavailable");
         };
         let area = self.state.view.terminal_area;
+        let frame_layout = if self.state.shared_pane_borders {
+            PaneFrameLayout::Shared
+        } else {
+            PaneFrameLayout::Independent
+        };
         let Some(info) = tab
             .layout
-            .panes(area)
+            .panes_with_frame_layout(area, frame_layout)
             .into_iter()
             .find(|info| info.id == pane_id)
         else {
@@ -1612,7 +1617,14 @@ impl App {
         direction: PaneDirection,
     ) -> Option<PaneId> {
         let tab = self.state.workspaces.get(ws_idx)?.tabs.get(tab_idx)?;
-        let panes = tab.layout.panes(self.state.view.terminal_area);
+        let frame_layout = if self.state.shared_pane_borders {
+            PaneFrameLayout::Shared
+        } else {
+            PaneFrameLayout::Independent
+        };
+        let panes = tab
+            .layout
+            .panes_with_frame_layout(self.state.view.terminal_area, frame_layout);
         let source = panes.iter().find(|pane| pane.id == source_pane_id)?;
         find_in_direction(source, direction.into(), &panes)
     }
@@ -1621,10 +1633,15 @@ impl App {
         let ws = self.state.workspaces.get(ws_idx)?;
         let tab = ws.tabs.get(tab_idx)?;
         let area = self.state.view.terminal_area;
+        let frame_layout = if self.state.shared_pane_borders {
+            PaneFrameLayout::Shared
+        } else {
+            PaneFrameLayout::Independent
+        };
         let focused_pane_id = self.public_pane_id(ws_idx, tab.layout.focused())?;
         let panes = tab
             .layout
-            .panes(area)
+            .panes_with_frame_layout(area, frame_layout)
             .into_iter()
             .filter_map(|pane| {
                 Some(PaneLayoutPane {
@@ -1636,7 +1653,7 @@ impl App {
             .collect();
         let splits = tab
             .layout
-            .splits(area)
+            .splits_with_frame_layout(area, frame_layout)
             .into_iter()
             .enumerate()
             .map(|(idx, split)| PaneLayoutSplit {

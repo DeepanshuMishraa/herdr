@@ -12,7 +12,7 @@ use super::widgets::{
 };
 use crate::{
     app::{
-        state::{ExperimentSetting, Palette},
+        state::{ExperimentSetting, Palette, PaneSetting},
         AppState,
     },
     config::ToastDelivery,
@@ -138,16 +138,8 @@ pub(super) fn render_settings_overlay(app: &AppState, frame: &mut Frame, area: R
                 2,
             );
         }
-        SettingsSection::PaneLabels => {
-            render_settings_toggle(
-                frame,
-                content_area,
-                p,
-                "agent border labels",
-                "show detected agent names in split pane borders",
-                app.agent_border_labels_enabled(),
-                app.settings.list.selected,
-            );
+        SettingsSection::Panes => {
+            render_settings_panes(app, frame, content_area);
         }
         SettingsSection::Experiments => {
             render_settings_experiments(app, frame, content_area);
@@ -411,6 +403,40 @@ fn render_settings_toggle(
         p,
         1,
     );
+}
+
+fn render_settings_panes(app: &AppState, frame: &mut Frame, area: Rect) {
+    let p = &app.palette;
+    let [desc_area, _, list_area] = Layout::vertical([
+        Constraint::Length(2),
+        Constraint::Length(1),
+        Constraint::Min(1),
+    ])
+    .areas::<3>(area);
+
+    super::widgets::render_modal_description(
+        frame,
+        desc_area,
+        "pane frame layout and labels",
+        Style::default().fg(p.overlay1),
+    );
+
+    for (idx, setting) in PaneSetting::ALL.iter().copied().enumerate() {
+        let marker = if setting.enabled(app) { "[✓]" } else { "[ ]" };
+        let style = if app.settings.list.selected == idx {
+            Style::default()
+                .bg(p.surface0)
+                .fg(p.text)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(p.subtext0)
+        };
+        let row = Rect::new(list_area.x, list_area.y + idx as u16, list_area.width, 1);
+        frame.render_widget(
+            Paragraph::new(format!(" {} {marker}", setting.label())).style(style),
+            row,
+        );
+    }
 }
 
 fn render_settings_experiments(app: &AppState, frame: &mut Frame, area: Rect) {

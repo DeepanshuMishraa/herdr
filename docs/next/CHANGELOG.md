@@ -4,6 +4,7 @@
 
 ### Added
 - Added smart Vim/Neovim pane navigation for direct `focus_pane_*` keybindings, plus `herdr integration install neovim` for the editor-side navigator plugin. Herdr forwards those keys into Vim-like foreground processes, and the Neovim plugin moves between editor splits first before calling `herdr pane focus --direction ...` at split edges.
+- Added optional shared pane borders and a separate focused-border thickness setting in the panes settings tab and `[ui]` configuration.
 
 ### Fixed
 - Local Herdr clients no longer treat raw `Ctrl+V` as a clipboard-image paste trigger, so pane apps such as Vim and Neovim receive block-visual `Ctrl+V` even when the desktop clipboard contains an image. `herdr --remote` keeps `keys.remote_image_paste = "ctrl+v"` by default. (#647)

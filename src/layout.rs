@@ -55,6 +55,12 @@ pub struct SplitBorder {
     pub path: Vec<bool>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PaneFrameLayout {
+    Independent,
+    Shared,
+}
+
 /// Cardinal direction for pane navigation.
 #[derive(Debug, Clone, Copy)]
 pub enum NavDirection {
@@ -105,15 +111,31 @@ impl TileLayout {
 
     /// Compute rects for all panes given the available area.
     pub fn panes(&self, area: Rect) -> Vec<PaneInfo> {
+        self.panes_with_frame_layout(area, PaneFrameLayout::Independent)
+    }
+
+    pub fn panes_with_frame_layout(
+        &self,
+        area: Rect,
+        frame_layout: PaneFrameLayout,
+    ) -> Vec<PaneInfo> {
         let mut result = Vec::new();
-        collect_panes(&self.root, area, self.focus, &mut result);
+        collect_panes(&self.root, area, self.focus, frame_layout, &mut result);
         result
     }
 
     /// Collect all split boundaries for mouse drag resize.
     pub fn splits(&self, area: Rect) -> Vec<SplitBorder> {
+        self.splits_with_frame_layout(area, PaneFrameLayout::Independent)
+    }
+
+    pub fn splits_with_frame_layout(
+        &self,
+        area: Rect,
+        frame_layout: PaneFrameLayout,
+    ) -> Vec<SplitBorder> {
         let mut result = Vec::new();
-        collect_splits(&self.root, area, vec![], &mut result);
+        collect_splits(&self.root, area, vec![], frame_layout, &mut result);
         result
     }
 
@@ -287,16 +309,20 @@ pub fn find_in_direction(
             let r = p.rect;
             match direction {
                 NavDirection::Left => {
-                    r.x + r.width <= fr.x && ranges_overlap(r.y, r.height, fr.y, fr.height)
+                    r.x + r.width <= fr.x.saturating_add(1)
+                        && ranges_overlap(r.y, r.height, fr.y, fr.height)
                 }
                 NavDirection::Right => {
-                    r.x >= fr.x + fr.width && ranges_overlap(r.y, r.height, fr.y, fr.height)
+                    r.x.saturating_add(1) >= fr.x + fr.width
+                        && ranges_overlap(r.y, r.height, fr.y, fr.height)
                 }
                 NavDirection::Up => {
-                    r.y + r.height <= fr.y && ranges_overlap(r.x, r.width, fr.x, fr.width)
+                    r.y + r.height <= fr.y.saturating_add(1)
+                        && ranges_overlap(r.x, r.width, fr.x, fr.width)
                 }
                 NavDirection::Down => {
-                    r.y >= fr.y + fr.height && ranges_overlap(r.x, r.width, fr.x, fr.width)
+                    r.y.saturating_add(1) >= fr.y + fr.height
+                        && ranges_overlap(r.x, r.width, fr.x, fr.width)
                 }
             }
         })
@@ -405,7 +431,13 @@ fn count_panes(node: &Node) -> usize {
     }
 }
 
-fn collect_panes(node: &Node, area: Rect, focus: PaneId, result: &mut Vec<PaneInfo>) {
+fn collect_panes(
+    node: &Node,
+    area: Rect,
+    focus: PaneId,
+    frame_layout: PaneFrameLayout,
+    result: &mut Vec<PaneInfo>,
+) {
     match node {
         Node::Pane(id) => {
             result.push(PaneInfo {
@@ -423,14 +455,20 @@ fn collect_panes(node: &Node, area: Rect, focus: PaneId, result: &mut Vec<PaneIn
             first,
             second,
         } => {
-            let (a, b) = split_rect(area, *direction, *ratio);
-            collect_panes(first, a, focus, result);
-            collect_panes(second, b, focus, result);
+            let (a, b) = split_rect_with_frame_layout(area, *direction, *ratio, frame_layout);
+            collect_panes(first, a, focus, frame_layout, result);
+            collect_panes(second, b, focus, frame_layout, result);
         }
     }
 }
 
-fn collect_splits(node: &Node, area: Rect, path: Vec<bool>, result: &mut Vec<SplitBorder>) {
+fn collect_splits(
+    node: &Node,
+    area: Rect,
+    path: Vec<bool>,
+    frame_layout: PaneFrameLayout,
+    result: &mut Vec<SplitBorder>,
+) {
     if let Node::Split {
         direction,
         ratio,
@@ -438,10 +476,12 @@ fn collect_splits(node: &Node, area: Rect, path: Vec<bool>, result: &mut Vec<Spl
         second,
     } = node
     {
-        let (a, b) = split_rect(area, *direction, *ratio);
-        let pos = match direction {
-            Direction::Horizontal => a.x + a.width,
-            Direction::Vertical => a.y + a.height,
+        let (a, b) = split_rect_with_frame_layout(area, *direction, *ratio, frame_layout);
+        let pos = match (direction, frame_layout) {
+            (Direction::Horizontal, PaneFrameLayout::Independent) => a.x + a.width,
+            (Direction::Vertical, PaneFrameLayout::Independent) => a.y + a.height,
+            (Direction::Horizontal, PaneFrameLayout::Shared) => a.right().saturating_sub(1),
+            (Direction::Vertical, PaneFrameLayout::Shared) => a.bottom().saturating_sub(1),
         };
         result.push(SplitBorder {
             pos,
@@ -452,10 +492,10 @@ fn collect_splits(node: &Node, area: Rect, path: Vec<bool>, result: &mut Vec<Spl
         });
         let mut lp = path.clone();
         lp.push(false);
-        collect_splits(first, a, lp, result);
+        collect_splits(first, a, lp, frame_layout, result);
         let mut rp = path;
         rp.push(true);
-        collect_splits(second, b, rp, result);
+        collect_splits(second, b, rp, frame_layout, result);
     }
 }
 
@@ -609,7 +649,16 @@ fn get_ratio_at(node: &Node, path: &[bool]) -> Option<f32> {
     }
 }
 
-fn split_rect(area: Rect, direction: Direction, ratio: f32) -> (Rect, Rect) {
+fn split_rect_with_frame_layout(
+    area: Rect,
+    direction: Direction,
+    ratio: f32,
+    frame_layout: PaneFrameLayout,
+) -> (Rect, Rect) {
+    if frame_layout == PaneFrameLayout::Shared {
+        return split_rect_with_shared_border(area, direction, ratio);
+    }
+
     match direction {
         Direction::Horizontal => {
             let first_w = ((area.width as f32) * ratio).round() as u16;
@@ -625,6 +674,38 @@ fn split_rect(area: Rect, direction: Direction, ratio: f32) -> (Rect, Rect) {
             (
                 Rect::new(area.x, area.y, area.width, first_h),
                 Rect::new(area.x, area.y + first_h, area.width, second_h),
+            )
+        }
+    }
+}
+
+fn split_rect_with_shared_border(area: Rect, direction: Direction, ratio: f32) -> (Rect, Rect) {
+    fn shared_lengths(total: u16, ratio: f32) -> (u16, u16) {
+        if total <= 1 {
+            return (total, total);
+        }
+        let shared_total = total.saturating_add(1);
+        let first = ((shared_total as f32) * ratio)
+            .round()
+            .clamp(1.0, total as f32) as u16;
+        (first, shared_total.saturating_sub(first))
+    }
+
+    match direction {
+        Direction::Horizontal => {
+            let (first_w, second_w) = shared_lengths(area.width, ratio);
+            let border_x = area.x + first_w.saturating_sub(1);
+            (
+                Rect::new(area.x, area.y, first_w, area.height),
+                Rect::new(border_x, area.y, second_w, area.height),
+            )
+        }
+        Direction::Vertical => {
+            let (first_h, second_h) = shared_lengths(area.height, ratio);
+            let border_y = area.y + first_h.saturating_sub(1);
+            (
+                Rect::new(area.x, area.y, area.width, first_h),
+                Rect::new(area.x, border_y, area.width, second_h),
             )
         }
     }
@@ -759,6 +840,44 @@ mod tests {
         assert_eq!(splits.len(), 1);
         assert_eq!(splits[0].0, Direction::Horizontal);
         assert!((splits[0].1 - 0.333).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn shared_frame_layout_overlaps_sibling_borders_by_one_cell() {
+        let (mut layout, left) = TileLayout::new();
+        let right = layout.split_focused(Direction::Horizontal);
+        let area = Rect::new(0, 0, 20, 10);
+
+        let panes = layout.panes_with_frame_layout(area, PaneFrameLayout::Shared);
+        let left = panes.iter().find(|pane| pane.id == left).unwrap();
+        let right = panes.iter().find(|pane| pane.id == right).unwrap();
+        let splits = layout.splits_with_frame_layout(area, PaneFrameLayout::Shared);
+
+        assert_eq!(left.rect, Rect::new(0, 0, 11, 10));
+        assert_eq!(right.rect, Rect::new(10, 0, 10, 10));
+        assert_eq!(left.rect.right() - 1, right.rect.left());
+        assert_eq!(splits.len(), 1);
+        assert_eq!(splits[0].pos, 10);
+        assert_eq!(
+            find_in_direction(left, NavDirection::Right, &panes),
+            Some(right.id)
+        );
+        assert_eq!(
+            find_in_direction(right, NavDirection::Left, &panes),
+            Some(left.id)
+        );
+    }
+
+    #[test]
+    fn shared_frame_layout_preserves_nested_full_perimeters() {
+        let layout = sample_layout();
+        let area = Rect::new(0, 0, 20, 10);
+        let panes = layout.panes_with_frame_layout(area, PaneFrameLayout::Shared);
+
+        assert_eq!(panes[0].rect, Rect::new(0, 0, 6, 10));
+        assert_eq!(panes[1].rect, Rect::new(5, 0, 15, 7));
+        assert_eq!(panes[2].rect, Rect::new(5, 6, 6, 4));
+        assert_eq!(panes[3].rect, Rect::new(10, 6, 10, 4));
     }
 
     #[test]

@@ -11,6 +11,7 @@ mod menus;
 mod mobile;
 mod navigator;
 mod onboarding;
+mod pane_frames;
 mod panes;
 mod release_notes;
 mod scrollbar;
@@ -235,7 +236,16 @@ fn compute_view_internal(
     let split_borders = app
         .active
         .and_then(|i| app.workspaces.get(i))
-        .map(|ws| ws.layout.splits(terminal_area))
+        .map(|ws| {
+            ws.layout.splits_with_frame_layout(
+                terminal_area,
+                if app.shared_pane_borders {
+                    crate::layout::PaneFrameLayout::Shared
+                } else {
+                    crate::layout::PaneFrameLayout::Independent
+                },
+            )
+        })
         .unwrap_or_default();
 
     let pane_infos = compute_pane_infos(
@@ -310,7 +320,16 @@ fn compute_mobile_view(
     let split_borders = app
         .active
         .and_then(|i| app.workspaces.get(i))
-        .map(|ws| ws.layout.splits(terminal_area))
+        .map(|ws| {
+            ws.layout.splits_with_frame_layout(
+                terminal_area,
+                if app.shared_pane_borders {
+                    crate::layout::PaneFrameLayout::Shared
+                } else {
+                    crate::layout::PaneFrameLayout::Independent
+                },
+            )
+        })
         .unwrap_or_default();
 
     let pane_infos = compute_pane_infos(

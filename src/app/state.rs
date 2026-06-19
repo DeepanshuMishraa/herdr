@@ -849,7 +849,7 @@ pub enum SettingsSection {
     Theme,
     Sound,
     Toast,
-    PaneLabels,
+    Panes,
     Experiments,
     Integrations,
 }
@@ -859,7 +859,7 @@ impl SettingsSection {
         Self::Theme,
         Self::Sound,
         Self::Toast,
-        Self::PaneLabels,
+        Self::Panes,
         Self::Integrations,
         Self::Experiments,
     ];
@@ -869,9 +869,40 @@ impl SettingsSection {
             Self::Theme => "theme",
             Self::Sound => "sound",
             Self::Toast => "toasts",
-            Self::PaneLabels => "pane labels",
+            Self::Panes => "panes",
             Self::Experiments => "experiments",
             Self::Integrations => "integrations",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PaneSetting {
+    SharedBorders,
+    ThickFocusedBorder,
+    AgentBorderLabels,
+}
+
+impl PaneSetting {
+    pub(crate) const ALL: [Self; 3] = [
+        Self::SharedBorders,
+        Self::ThickFocusedBorder,
+        Self::AgentBorderLabels,
+    ];
+
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Self::SharedBorders => "shared pane borders",
+            Self::ThickFocusedBorder => "thick focused border",
+            Self::AgentBorderLabels => "agent border labels",
+        }
+    }
+
+    pub(crate) fn enabled(self, app: &AppState) -> bool {
+        match self {
+            Self::SharedBorders => app.shared_pane_borders,
+            Self::ThickFocusedBorder => app.thick_focused_pane_border,
+            Self::AgentBorderLabels => app.show_agent_labels_on_pane_borders,
         }
     }
 }
@@ -1361,6 +1392,8 @@ pub struct AppState {
     pub mouse_scroll_lines: usize,
     pub confirm_close: bool,
     pub prompt_new_tab_name: bool,
+    pub shared_pane_borders: bool,
+    pub thick_focused_pane_border: bool,
     pub show_agent_labels_on_pane_borders: bool,
     pub pane_history_persistence: bool,
     /// Expose the focused pane's cursor anchor to the outer terminal even when
@@ -1446,10 +1479,6 @@ impl AppState {
 
     pub fn toast_delivery(&self) -> ToastDelivery {
         self.toast_config.delivery
-    }
-
-    pub fn agent_border_labels_enabled(&self) -> bool {
-        self.show_agent_labels_on_pane_borders
     }
 
     pub fn pane_history_persistence_enabled(&self) -> bool {
@@ -1717,6 +1746,8 @@ impl AppState {
             mouse_scroll_lines: crate::config::DEFAULT_MOUSE_SCROLL_LINES,
             confirm_close: true,
             prompt_new_tab_name: true,
+            shared_pane_borders: false,
+            thick_focused_pane_border: true,
             show_agent_labels_on_pane_borders: false,
             pane_history_persistence: false,
             reveal_hidden_cursor_for_cjk_ime: false,

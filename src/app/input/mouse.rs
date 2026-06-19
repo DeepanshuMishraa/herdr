@@ -1258,15 +1258,19 @@ impl AppState {
     pub(super) fn find_border_at(&self, col: u16, row: u16) -> Option<&SplitBorder> {
         self.view.split_borders.iter().find(|b| match b.direction {
             Direction::Horizontal => {
-                col >= b.pos.saturating_sub(1)
-                    && col <= b.pos
-                    && row >= b.area.y
+                (if self.shared_pane_borders {
+                    col == b.pos
+                } else {
+                    col >= b.pos.saturating_sub(1) && col <= b.pos
+                }) && row >= b.area.y
                     && row < b.area.y + b.area.height
             }
             Direction::Vertical => {
-                row >= b.pos.saturating_sub(1)
-                    && row <= b.pos
-                    && col >= b.area.x
+                (if self.shared_pane_borders {
+                    row == b.pos
+                } else {
+                    row >= b.pos.saturating_sub(1) && row <= b.pos
+                }) && col >= b.area.x
                     && col < b.area.x + b.area.width
             }
         })
@@ -2647,6 +2651,29 @@ mod tests {
         assert!(app
             .state
             .find_border_at(col, border.pos.saturating_add(1))
+            .is_none());
+    }
+
+    #[test]
+    fn shared_pane_split_hitbox_is_exactly_one_column() {
+        let mut app = app_for_mouse_test();
+        app.state.shared_pane_borders = true;
+        app.state.workspaces = vec![Workspace::test_new("test")];
+        app.state.active = Some(0);
+        app.state.selected = 0;
+        app.state.workspaces[0].test_split(Direction::Horizontal);
+        crate::ui::compute_view(&mut app.state, Rect::new(0, 0, 106, 20));
+        let border = app.state.view.split_borders[0].clone();
+        let row = border.area.y.saturating_add(1);
+
+        assert!(app
+            .state
+            .find_border_at(border.pos.saturating_sub(1), row)
+            .is_none());
+        assert!(app.state.find_border_at(border.pos, row).is_some());
+        assert!(app
+            .state
+            .find_border_at(border.pos.saturating_add(1), row)
             .is_none());
     }
 
