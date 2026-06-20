@@ -37,8 +37,10 @@ fn workspace_section_header_rows(app: &AppState) -> u16 {
 fn agent_panel_header_rows(app: &AppState) -> u16 {
     if app.show_sidebar_section_labels {
         AGENT_PANEL_HEADER_ROWS
+    } else if app.show_agent_sort_toggle && !app.agent_sort_toggle_in_footer {
+        2
     } else {
-        2 // Keep the separator plus one row of top padding.
+        1
     }
 }
 
@@ -1326,7 +1328,7 @@ mod tests {
         );
         assert_eq!(
             agent_panel_body_rect(&app, agent_area, false),
-            Rect::new(0, 12, 20, 7)
+            Rect::new(0, 11, 20, 8)
         );
         assert_eq!(
             agent_panel_toggle_rect(agent_area, AgentPanelSort::Spaces, true),
