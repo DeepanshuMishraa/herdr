@@ -795,3 +795,12 @@ mod tests {
         assert_eq!(args, "--\n-danger\nbody\n");
     }
 }
+
+/// Close the host terminal window. macOS traffic-light red button.
+pub fn host_window_close() {}
+
+/// Minimize the host terminal window. macOS traffic-light yellow button.
+pub fn host_window_minimize() {}
+
+/// Maximize (fullscreen) the host terminal window. macOS traffic-light green button.
+pub fn host_window_maximize() {}

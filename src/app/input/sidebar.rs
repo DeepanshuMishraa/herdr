@@ -547,19 +547,19 @@ mod tests {
     }
 
     #[test]
-    fn clicking_sidebar_quit_button_requests_detach() {
+    fn clicking_red_traffic_light_does_not_detach() {
         let mut app = app_for_mouse_test();
         app.state.show_sidebar_quit_button = true;
         app.state.detach_exits = false;
-        let button = crate::ui::sidebar_quit_button_rect(app.state.view.sidebar_rect);
+        let (red, _, _) = crate::ui::sidebar_traffic_light_rects(app.state.view.sidebar_rect);
 
         app.handle_mouse(mouse(
             MouseEventKind::Down(MouseButton::Left),
-            button.x,
-            button.y,
+            red.x,
+            red.y,
         ));
 
-        assert!(app.state.detach_requested);
+        assert!(!app.state.detach_requested);
         assert!(!app.state.should_quit);
     }
 
@@ -1424,6 +1424,7 @@ mod tests {
     #[test]
     fn top_drop_slot_is_distinct_from_gap_below_first_workspace() {
         let mut app = app_for_mouse_test();
+        app.state.show_sidebar_quit_button = false;
         let first_repo = temp_git_repo("main");
         let second_repo = temp_git_repo("main");
 

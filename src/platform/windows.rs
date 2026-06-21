@@ -382,6 +382,15 @@ pub fn show_desktop_notification(_title: &str, _body: Option<&str>) -> std::io::
     Ok(false)
 }
 
+/// Close the host terminal window. macOS traffic-light red button.
+pub fn host_window_close() {}
+
+/// Minimize the host terminal window. macOS traffic-light yellow button.
+pub fn host_window_minimize() {}
+
+/// Maximize (fullscreen) the host terminal window. macOS traffic-light green button.
+pub fn host_window_maximize() {}
+
 fn wide_null(value: &str) -> Vec<u16> {
     value.encode_utf16().chain(std::iter::once(0)).collect()
 }

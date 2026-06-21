@@ -72,9 +72,10 @@ pub(crate) use self::{
         agent_panel_body_rect, agent_panel_entries, agent_panel_scroll_metrics,
         agent_panel_scrollbar_rect, agent_panel_toggle_rect, collapsed_sidebar_sections,
         collapsed_sidebar_toggle_rect, compute_workspace_card_areas, expanded_sidebar_sections,
-        expanded_sidebar_toggle_rect, normalized_workspace_scroll, sidebar_quit_button_rect,
-        sidebar_section_divider_rect, workspace_drop_indicator_row, workspace_list_entries,
-        workspace_list_rect, workspace_list_scroll_metrics, workspace_list_scrollbar_rect,
+        expanded_sidebar_toggle_rect, normalized_workspace_scroll, sidebar_section_divider_rect,
+        sidebar_traffic_light_rects, workspace_drop_indicator_row, workspace_list_entries,
+        workspace_list_rect, workspace_list_scroll_metrics,
+        workspace_list_scrollbar_rect,
         workspace_parent_group_state, WorkspaceListEntry,
     },
 };
@@ -842,7 +843,7 @@ mod tests {
         let mut terminal = Terminal::new(TestBackend::new(100, 20)).unwrap();
         terminal.draw(|frame| render(&app, frame)).unwrap();
 
-        let button = sidebar_quit_button_rect(app.view.sidebar_rect);
+        let button = crate::ui::sidebar::sidebar_quit_button_rect(app.view.sidebar_rect);
         let buffer = terminal.backend().buffer();
         assert_eq!(buffer[(button.x, button.y)].symbol(), "▃");
         assert_eq!(buffer[(button.x, button.y)].fg, app.palette.red);

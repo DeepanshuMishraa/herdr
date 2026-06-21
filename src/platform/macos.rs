@@ -1118,3 +1118,84 @@ printf '%s\n' "$@" > "$HERDR_NOTIFY_ARGS"
         );
     }
 }
+
+/// Detect the macOS process name of the terminal hosting this process.
+///
+/// Returns `None` if `$TERM_PROGRAM` is unset or unrecognized. Used by the
+/// traffic-light controls to target the right window for `System Events`.
+fn host_terminal_process_name() -> Option<&'static str> {
+    let program = std::env::var("TERM_PROGRAM").ok()?;
+    match program.as_str() {
+        "Apple_Terminal" => Some("Terminal"),
+        "iTerm.app" => Some("iTerm2"),
+        "ghostty" => Some("Ghostty"),
+        "WezTerm" => Some("WezTerm"),
+        "Alacritty" => Some("Alacritty"),
+        "kitty" => Some("kitty"),
+        _ => None,
+    }
+}
+
+/// Run an AppleScript that targets the frontmost window of the host terminal.
+fn run_host_window_applescript(script: &str) {
+    let Some(process) = host_terminal_process_name() else {
+        return;
+    };
+    let script = script.replace("{PROCESS}", process);
+    let _ = Command::new("osascript")
+        .arg("-e")
+        .arg(script)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+}
+
+/// Close the host terminal window. macOS traffic-light red button.
+/// Triggers the terminal's close confirmation popup (e.g. Ghostty's "Terminate?" dialog).
+pub fn host_window_close() {
+    if host_terminal_process_name().is_none() {
+        return;
+    }
+    let _ = Command::new("osascript")
+        .arg("-e")
+        .arg(format!(
+            r#"tell application "{}" to quit"#,
+            host_terminal_process_name().unwrap_or_default()
+        ))
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+}
+
+/// Minimize the host terminal window. macOS traffic-light yellow button.
+pub fn host_window_minimize() {
+    run_host_window_applescript(
+        r#"tell application "System Events" to set value of attribute "AXMinimized" of window 1 of process "{PROCESS}" to true"#,
+    );
+}
+
+/// Maximize (fullscreen) the host terminal window. macOS traffic-light green button.
+/// Toggles fullscreen by activating the terminal and sending cmd+ctrl+f (the
+/// macOS-standard fullscreen toggle shortcut).
+pub fn host_window_maximize() {
+    let Some(process) = host_terminal_process_name() else {
+        return;
+    };
+    let _ = Command::new("osascript")
+        .arg("-e")
+        .arg(format!(r#"tell application "{}" to activate"#, process))
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+    std::thread::sleep(std::time::Duration::from_millis(150));
+    let _ = Command::new("osascript")
+        .arg("-e")
+        .arg(r#"tell application "System Events" to keystroke "f" using {command down, control down}"#)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+}

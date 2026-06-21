@@ -467,6 +467,19 @@ pub(crate) fn sidebar_quit_button_rect(area: Rect) -> Rect {
     )
 }
 
+/// Per-light hit areas inside the traffic-light strip (red/yellow/green).
+/// Returns `(red, yellow, green)` rects or all-default if the strip is empty.
+pub(crate) fn sidebar_traffic_light_rects(area: Rect) -> (Rect, Rect, Rect) {
+    let strip = sidebar_quit_button_rect(area);
+    if strip == Rect::default() {
+        return (Rect::default(), Rect::default(), Rect::default());
+    }
+    let red = Rect::new(strip.x, strip.y, 1, strip.height);
+    let yellow = Rect::new(strip.x + 2, strip.y, 1, strip.height);
+    let green = Rect::new(strip.x + 4, strip.y, 1, strip.height);
+    (red, yellow, green)
+}
+
 pub(crate) fn workspace_list_body_rect(app: &AppState, area: Rect, has_scrollbar: bool) -> Rect {
     let header_rows = workspace_section_header_rows(app);
     let footer_rows = 1;
@@ -1309,6 +1322,7 @@ mod tests {
     #[test]
     fn expanded_sidebar_customization_reclaims_headers_and_reserves_footer() {
         let mut app = crate::app::state::AppState::test_new();
+        app.show_sidebar_quit_button = false;
         let workspace_area = Rect::new(0, 0, 20, 10);
         let agent_area = Rect::new(0, 10, 20, 10);
 
