@@ -1,0 +1,41 @@
+src/platform/windows.rs
+  s_0fc8412b5faef1::t_6ca9d2b908d70e 385-393
+src/platform/linux.rs
+  s_0fc8412b5faef1::t_30669674de0715 798-806
+src/ui.rs
+  s_0fc8412b5faef1::t_f603e36b653ed1 75-77
+  s_0fc8412b5faef1::t_c7d0c14cba3565 846
+  s_0fc8412b5faef1::t_aa5b4c35aab399 78
+src/platform/macos.rs
+  s_0fc8412b5faef1::t_0253b7154d0d93 1183-1185,1187,1189,1191
+  s_0fc8412b5faef1::t_181aa6f07611aa 1155,1157-1169,1180-1181,1186,1188,1190,1192-1200
+  s_0fc8412b5faef1::t_b049a97aab2064 1121-1154,1156,1170-1174,1176-1179,1182,1201
+  s_0fc8412b5faef1::t_b64cd1e46a4bfc 1175
+src/ui/sidebar.rs
+  s_0fc8412b5faef1::t_712d525885dc04 470-482
+  s_0fc8412b5faef1::t_ba53aaaff4d79a 1325
+src/app/input/mouse.rs
+  s_0fc8412b5faef1::t_04f50952591365 23
+  s_0fc8412b5faef1::t_a0ecb03b680987 383-401
+src/platform/fallback.rs
+  s_0fc8412b5faef1::t_4dc8f462676bc7 70-78
+src/app/input/sidebar.rs
+  s_0fc8412b5faef1::t_59febf883a3ed0 550,554,558-559,562
+  s_0fc8412b5faef1::t_ad4752c4ad1179 1427
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "903d4a2c63b676c73b003dcf6bb776b8f6987811",
+  "prompts": {},
+  "sessions": {
+    "s_0fc8412b5faef1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_115b9cc77ffeSCealVBEgCr1vy",
+        "model": "minimax-m3"
+      },
+      "human_author": "Deepanshu Mishra <d4deepanshu723@gmail.com>"
+    }
+  }
+}
