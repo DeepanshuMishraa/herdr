@@ -1,0 +1,65 @@
+src/main.rs
+  s_0fc8412b5faef1::t_f27cefd2e52423 296
+  s_0fc8412b5faef1::t_7260f7b1eea890 299,303
+  s_0fc8412b5faef1::t_eef902f8b9171c 289
+  s_0fc8412b5faef1::t_4d98efc2aa96ac 309
+src/app/input/sidebar.rs
+  s_0fc8412b5faef1::t_7015166c88011a 191
+  s_0fc8412b5faef1::t_e10e90db8b7836 530-531
+  s_0fc8412b5faef1::t_b78dd036a7a282 852-853,856-857,867-872
+  s_0fc8412b5faef1::t_428deb8db142ab 775
+  s_0fc8412b5faef1::t_6b5269ed980baf 179-181
+  s_0fc8412b5faef1::t_100e8e19bd6159 1458
+  s_0fc8412b5faef1::t_869e33527b4b78 745-751
+  s_0fc8412b5faef1::t_e66c2c297bd487 825
+src/ui.rs
+  s_0fc8412b5faef1::t_9dc323d5e9dacf 247
+  s_0fc8412b5faef1::t_7ca677d092a26e 246,248-250,252-253
+src/app/mod.rs
+  s_0fc8412b5faef1::t_555b62ee200c61 614
+  s_0fc8412b5faef1::t_7b005c20b267bc 1362
+src/config/model.rs
+  s_0fc8412b5faef1::t_a0d9bd7a99157d 993
+  s_0fc8412b5faef1::t_c7c1e747d19597 954,961,967
+  s_0fc8412b5faef1::t_b843cbfea93c62 696
+  s_0fc8412b5faef1::t_130a3fceadcef2 989
+  s_0fc8412b5faef1::t_6a3fffcbb44fa3 691
+  s_0fc8412b5faef1::t_162b874639094b 689
+  s_0fc8412b5faef1::t_2a271dcc7baabb 491
+  s_0fc8412b5faef1::t_df714eef45307c 692,694
+  s_0fc8412b5faef1::t_e5e12b383de8c2 487
+  s_0fc8412b5faef1::t_c18ca93aef8b52 481
+  s_0fc8412b5faef1::t_937589f0467efc 477-478
+  s_0fc8412b5faef1::t_ff9c128460a717 483
+  s_0fc8412b5faef1::t_0f650ec3c63a49 988,991
+src/app/state.rs
+  s_0fc8412b5faef1::t_6482c5849f09a9 1855
+  s_0fc8412b5faef1::t_bf0b907adcd7bc 1848
+  s_0fc8412b5faef1::t_0705f011aec4c2 1850
+  s_0fc8412b5faef1::t_761321f14eb2ac 1851,1853
+  s_0fc8412b5faef1::t_ba32982c24b65b 1483
+src/ui/sidebar.rs
+  s_0fc8412b5faef1::t_95cf98d5092b72 1315-1316
+  s_0fc8412b5faef1::t_2279d725374a61 1356
+  s_0fc8412b5faef1::t_edc773a6548425 1060,1076
+  s_0fc8412b5faef1::t_27f3a4b1948a76 678,680-681,686-687
+src/ui/tabs.rs
+  s_0fc8412b5faef1::t_d70b209df7eadb 259-261,263-273
+  s_0fc8412b5faef1::t_4a9e75a58945cf 262
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "b82f63c9b6588b32d7d5cafe2bbe2cb1c0c49d22",
+  "prompts": {},
+  "sessions": {
+    "s_0fc8412b5faef1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_115b9cc77ffeSCealVBEgCr1vy",
+        "model": "minimax-m3"
+      },
+      "human_author": "Deepanshu Mishra <d4deepanshu723@gmail.com>"
+    }
+  }
+}
