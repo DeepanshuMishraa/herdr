@@ -1,0 +1,31 @@
+src/app/state.rs
+  s_0fc8412b5faef1::t_42ac2eab201533 149-173
+  s_0fc8412b5faef1::t_37bcc6ed31c111 585-586
+src/pane/terminal.rs
+  s_0fc8412b5faef1::t_5333ac7fe2c04f 237-238
+  s_0fc8412b5faef1::t_c9feac79c6fc67 1175,1193-1194
+src/terminal/runtime.rs
+  s_0fc8412b5faef1::t_fcdf0ad9ede42b 314-315
+src/ui/panes.rs
+  s_0fc8412b5faef1::t_6006b7e0040434 336-338
+src/pane.rs
+  s_0fc8412b5faef1::t_2f48d48371376d 2405-2406
+src/server/render_stream.rs
+  s_0fc8412b5faef1::t_48d38e539b1cba 337
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "d7a2068a95863f3607165cb92d3b0be9c7b73497",
+  "prompts": {},
+  "sessions": {
+    "s_0fc8412b5faef1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_115b9cc77ffeSCealVBEgCr1vy",
+        "model": "minimax-m3"
+      },
+      "human_author": "Deepanshu Mishra <d4deepanshu723@gmail.com>"
+    }
+  }
+}
