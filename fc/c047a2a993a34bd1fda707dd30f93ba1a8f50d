@@ -1,0 +1,45 @@
+src/app/input/mouse.rs
+  s_bc364ab3d7850e::t_57526a653dd534 507-515
+  s_bc364ab3d7850e::t_4ab84cd2738056 791-793
+  s_bc364ab3d7850e::t_82d12c724d3be4 392-393,406-407,413
+  s_bc364ab3d7850e::t_a3e25402eeef60 858-862
+  s_bc364ab3d7850e::t_938006a73dca0d 408-412,414-419
+src/platform/macos.rs
+  s_bc364ab3d7850e::t_d178f88345d579 1379,1381,1387,1489,1510,1546
+  s_bc364ab3d7850e::t_90587de6eec655 1380,1383-1386,1389,1421-1422,1434-1437,1442,1444,1446,1448-1449,1453-1454,1473-1477,1480-1488,1492-1493,1509,1511,1515-1516,1525-1530,1539,1541-1545
+  s_bc364ab3d7850e::t_bc53e880d3892d 1459-1469,1502,1507
+  s_bc364ab3d7850e::t_6844da90c8e5b1 1458
+  s_bc364ab3d7850e::t_732b4bf8d05cea 1202-1378,1472,1478-1479,1520-1521,1524,1537-1538,1540,1548-1549
+  s_bc364ab3d7850e::t_62c2ca2a5b938a 1531-1532
+  s_bc364ab3d7850e::t_a0777c48d7cf39 1390-1420,1423-1433,1438,1447,1455-1457,1470-1471,1494,1501,1504,1514,1522-1523,1533-1536,1547
+  s_bc364ab3d7850e::t_7edfdd07651026 1382,1388,1439-1441,1443,1445,1450-1452,1490-1491,1495-1500,1503,1505-1506,1508,1512-1513,1517-1519
+src/platform/fallback.rs
+  s_bc364ab3d7850e::t_01278c58ebcc6d 79-82
+src/platform/windows.rs
+  s_bc364ab3d7850e::t_456a56bb3d46ca 394-397
+src/platform/linux.rs
+  s_bc364ab3d7850e::t_a4d5c8385580c3 807-810
+src/app/state.rs
+  s_bc364ab3d7850e::t_85d22055120bba 1181
+README.md
+  s_bc364ab3d7850e::t_667a0d5148d749 224-230,232-235
+  s_bc364ab3d7850e::t_b91041e30f6061 231
+src/app/input/sidebar.rs
+  s_bc364ab3d7850e::t_91be86fe03a9e4 550,564-569
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "fcc047a2a993a34bd1fda707dd30f93ba1a8f50d",
+  "prompts": {},
+  "sessions": {
+    "s_bc364ab3d7850e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_114c1e003ffe1RYWZTVpKCjeQH",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Deepanshu Mishra <d4deepanshu723@gmail.com>"
+    }
+  }
+}
