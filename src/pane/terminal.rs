@@ -234,16 +234,18 @@ impl PaneTerminal {
         self.ghostty.extract_selection(selection)
     }
 
-    pub fn render(&self, frame: &mut Frame, area: Rect, show_cursor: bool) {
-        self.ghostty.render(frame, area, show_cursor);
+    pub fn render(&self, frame: &mut Frame, area: Rect, show_cursor: bool, fallback_fg: Option<Color>, fallback_bg: Option<Color>) {
+        self.ghostty.render(frame, area, show_cursor, fallback_fg, fallback_bg);
     }
 
     pub fn collect_dirty_patch(
         &self,
         area_width: u16,
         area_height: u16,
+        fallback_fg: Option<Color>,
+        fallback_bg: Option<Color>,
     ) -> TerminalDirtyPatchOutcome {
-        self.ghostty.collect_dirty_patch(area_width, area_height)
+        self.ghostty.collect_dirty_patch(area_width, area_height, fallback_fg, fallback_bg)
     }
 
     pub fn visible_hyperlinks(&self, area: Rect) -> Vec<((u16, u16), String, String)> {
@@ -1170,7 +1172,7 @@ impl GhosttyPaneTerminal {
             .unwrap_or_default()
     }
 
-    pub fn render(&self, frame: &mut Frame, area: Rect, show_cursor: bool) {
+    pub fn render(&self, frame: &mut Frame, area: Rect, show_cursor: bool, fallback_fg: Option<Color>, fallback_bg: Option<Color>) {
         let Ok(mut core) = self.core.lock() else {
             return;
         };
@@ -1188,9 +1190,11 @@ impl GhosttyPaneTerminal {
         }
         let colors = render_state.colors().ok();
         let default_bg = colors
-            .and_then(|c| ghostty_default_bg(c.background, host_theme, initial_default_background));
+            .and_then(|c| ghostty_default_bg(c.background, host_theme, initial_default_background))
+            .or(fallback_bg);
         let default_fg = colors
-            .and_then(|c| ghostty_default_fg(c.foreground, host_theme, initial_default_foreground));
+            .and_then(|c| ghostty_default_fg(c.foreground, host_theme, initial_default_foreground))
+            .or(fallback_fg);
         let resolved_fg = colors.map(|c| ghostty_color(c.foreground));
         let resolved_bg = colors.map(|c| ghostty_color(c.background));
         let hide_kitty_placeholders = crate::kitty_graphics::is_enabled();
@@ -1282,11 +1286,13 @@ impl GhosttyPaneTerminal {
         &self,
         area_width: u16,
         area_height: u16,
+        fallback_fg: Option<Color>,
+        fallback_bg: Option<Color>,
     ) -> TerminalDirtyPatchOutcome {
         self.core
             .lock()
             .ok()
-            .map(|mut core| ghostty_collect_dirty_patch(&mut core, area_width, area_height))
+            .map(|mut core| ghostty_collect_dirty_patch(&mut core, area_width, area_height, fallback_fg, fallback_bg))
             .unwrap_or(TerminalDirtyPatchOutcome::Fallback)
     }
 }
@@ -1378,6 +1384,8 @@ fn ghostty_collect_dirty_patch(
     core: &mut GhosttyPaneCore,
     area_width: u16,
     area_height: u16,
+    fallback_fg: Option<Color>,
+    fallback_bg: Option<Color>,
 ) -> TerminalDirtyPatchOutcome {
     let prof_started = crate::render_prof::timer();
     macro_rules! finish {
@@ -1430,9 +1438,11 @@ fn ghostty_collect_dirty_patch(
 
     let colors = render_state.colors().ok();
     let default_bg = colors
-        .and_then(|c| ghostty_default_bg(c.background, host_theme, initial_default_background));
+        .and_then(|c| ghostty_default_bg(c.background, host_theme, initial_default_background))
+        .or(fallback_bg);
     let default_fg = colors
-        .and_then(|c| ghostty_default_fg(c.foreground, host_theme, initial_default_foreground));
+        .and_then(|c| ghostty_default_fg(c.foreground, host_theme, initial_default_foreground))
+        .or(fallback_fg);
     let resolved_fg = colors.map(|c| ghostty_color(c.foreground));
     let resolved_bg = colors.map(|c| ghostty_color(c.background));
     let hide_kitty_placeholders = crate::kitty_graphics::is_enabled();
@@ -1854,7 +1864,15 @@ fn ghostty_cell_style(
         .style
         .fg_color
         .map(ghostty_cell_color)
-        .or_else(|| cells.fg_color().ok().flatten().map(ghostty_color))
+        .or_else(|| {
+            cells.fg_color().ok().flatten().map(ghostty_color).and_then(|fg| {
+                if Some(fg) == resolved_fg {
+                    None
+                } else {
+                    Some(fg)
+                }
+            })
+        })
         .or(default_fg);
     let mut bg = cells
         .content_bg_color()
@@ -1862,7 +1880,15 @@ fn ghostty_cell_style(
         .flatten()
         .or(basic.style.bg_color)
         .map(ghostty_cell_color)
-        .or_else(|| cells.bg_color().ok().flatten().map(ghostty_color))
+        .or_else(|| {
+            cells.bg_color().ok().flatten().map(ghostty_color).and_then(|bg| {
+                if Some(bg) == resolved_bg {
+                    None
+                } else {
+                    Some(bg)
+                }
+            })
+        })
         .or(default_bg);
     if basic.style.invisible {
         fg = bg.or(default_bg);
@@ -2388,8 +2414,8 @@ mod tests {
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
             .draw(|frame| {
-                first.render(frame, Rect::new(0, 0, 20, 5), true);
-                second.render(frame, Rect::new(20, 0, 20, 5), false);
+                first.render(frame, Rect::new(0, 0, 20, 5), true, None, None);
+                second.render(frame, Rect::new(20, 0, 20, 5), false, None, None);
             })
             .unwrap();
 
@@ -3097,7 +3123,7 @@ mod tests {
         let backend = ratatui::backend::TestBackend::new(20, 5);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
-            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false))
+            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false, None, None))
             .unwrap();
 
         let buffer = terminal.backend().buffer();
@@ -3118,7 +3144,7 @@ mod tests {
         let backend = ratatui::backend::TestBackend::new(20, 5);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
-            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false))
+            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false, None, None))
             .unwrap();
 
         let buffer = terminal.backend().buffer();
@@ -3145,7 +3171,7 @@ mod tests {
         let backend = ratatui::backend::TestBackend::new(20, 5);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
-            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false))
+            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false, None, None))
             .unwrap();
         crate::kitty_graphics::set_enabled(false);
 
@@ -3170,7 +3196,7 @@ mod tests {
         let backend = ratatui::backend::TestBackend::new(20, 5);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
-            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false))
+            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false, None, None))
             .unwrap();
 
         let buffer = terminal.backend().buffer();
@@ -3194,7 +3220,7 @@ mod tests {
         let backend = ratatui::backend::TestBackend::new(20, 5);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
-            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false))
+            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false, None, None))
             .unwrap();
 
         let buffer = terminal.backend().buffer();
@@ -3220,7 +3246,7 @@ mod tests {
         let backend = ratatui::backend::TestBackend::new(20, 5);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
-            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false))
+            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false, None, None))
             .unwrap();
 
         let buffer = terminal.backend().buffer();
@@ -3247,7 +3273,7 @@ mod tests {
         let backend = ratatui::backend::TestBackend::new(20, 5);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
-            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false))
+            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false, None, None))
             .unwrap();
 
         let buffer = terminal.backend().buffer();
@@ -3270,7 +3296,7 @@ mod tests {
         let backend = ratatui::backend::TestBackend::new(20, 5);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
-            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false))
+            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false, None, None))
             .unwrap();
 
         let buffer = terminal.backend().buffer();
@@ -3524,7 +3550,7 @@ mod tests {
         let backend = ratatui::backend::TestBackend::new(20, 5);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
-            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false))
+            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false, None, None))
             .unwrap();
 
         let style = terminal.backend().buffer()[(0, 0)].style();
@@ -3786,7 +3812,7 @@ mod tests {
         let backend = ratatui::backend::TestBackend::new(20, 5);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
-            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false))
+            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false, None, None))
             .unwrap();
 
         let buffer = terminal.backend().buffer();
@@ -3824,7 +3850,7 @@ mod tests {
         let backend = ratatui::backend::TestBackend::new(20, 5);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
-            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false))
+            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false, None, None))
             .unwrap();
 
         let buffer = terminal.backend().buffer();
@@ -3861,7 +3887,7 @@ mod tests {
         let backend = ratatui::backend::TestBackend::new(20, 5);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
-            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false))
+            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false, None, None))
             .unwrap();
 
         let buffer = terminal.backend().buffer();
@@ -3899,7 +3925,7 @@ mod tests {
         let backend = ratatui::backend::TestBackend::new(20, 5);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
-            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false))
+            .draw(|frame| pane.render(frame, Rect::new(0, 0, 20, 5), false, None, None))
             .unwrap();
 
         let buffer = terminal.backend().buffer();

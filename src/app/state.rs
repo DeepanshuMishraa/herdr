@@ -146,6 +146,31 @@ impl Palette {
         }
     }
 
+    /// Catppuccin Macchiato — darker, warmer than Mocha.
+    /// Inspired by the user's tmux config overrides.
+    pub fn catppuccin_macchiato() -> Self {
+        Self {
+            accent: Color::Rgb(198, 160, 246),    // #c6a0f6 mauve
+            panel_bg: Color::Rgb(36, 39, 58),     // #24273a base
+            surface0: Color::Rgb(54, 58, 79),     // #363a4f
+            active_space_bg: Color::Rgb(30, 32, 48), // #1e2030 mantle
+            surface1: Color::Rgb(73, 77, 100),    // #494d64
+            surface_dim: Color::Rgb(30, 32, 48),  // #1e2030
+            separator: Color::Rgb(30, 32, 48),    // #1e2030
+            overlay0: Color::Rgb(110, 115, 138),  // #6e738a
+            overlay1: Color::Rgb(128, 135, 162),  // #8087a2
+            text: Color::Rgb(202, 211, 245),      // #cad3f5
+            subtext0: Color::Rgb(165, 173, 203),  // #a5adcb
+            mauve: Color::Rgb(198, 160, 246),     // #c6a0f6
+            green: Color::Rgb(166, 218, 149),     // #a6da95
+            yellow: Color::Rgb(238, 212, 159),    // #eed49f
+            red: Color::Rgb(237, 135, 150),      // #ed8796
+            blue: Color::Rgb(138, 173, 244),      // #8aadf4
+            teal: Color::Rgb(139, 213, 202),      // #8bd5ca
+            peach: Color::Rgb(245, 169, 127),     // #f5a97f
+        }
+    }
+
     /// Catppuccin Latte — the light Catppuccin flavor.
     pub fn catppuccin_latte() -> Self {
         Self {
@@ -557,7 +582,8 @@ impl Palette {
     /// Resolve a theme by name. Returns None for unknown names.
     pub fn from_name(name: &str) -> Option<Self> {
         match name.to_lowercase().replace([' ', '_'], "-").as_str() {
-            "catppuccin" | "catppuccin-mocha" => Some(Self::catppuccin()),
+            "catppuccin" => Some(Self::catppuccin()),
+            "catppuccin-mocha" | "catppuccin-macchiato" | "macchiato" => Some(Self::catppuccin_macchiato()),
             "catppuccin-latte" | "latte" | "light" => Some(Self::catppuccin_latte()),
             "terminal" => Some(Self::terminal()),
             "tokyo-night" | "tokyonight" => Some(Self::tokyo_night()),

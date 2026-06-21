@@ -334,7 +334,7 @@ pub(crate) fn render_terminal_virtual(
 
     terminal
         .draw(|frame| {
-            runtime.render(frame, area, true);
+            runtime.render(frame, area, true, None, None);
         })
         .expect("render to TestBackend should never fail");
 

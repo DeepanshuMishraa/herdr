@@ -471,6 +471,12 @@ pub fn render_with_runtime_registry(
     terminal_runtimes: &TerminalRuntimeRegistry,
     frame: &mut Frame,
 ) {
+    if app.palette.panel_bg != ratatui::style::Color::Reset {
+        frame.render_widget(
+            ratatui::widgets::Block::default().style(Style::default().bg(app.palette.panel_bg)),
+            frame.area(),
+        );
+    }
     let sidebar_area = app.view.sidebar_rect;
     let tab_bar_area = app.view.tab_bar_rect;
     let terminal_area = app.view.terminal_area;
