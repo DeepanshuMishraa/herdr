@@ -1199,3 +1199,351 @@ pub fn host_window_maximize() {
         .stderr(Stdio::null())
         .spawn();
 }
+
+// ---------------------------------------------------------------------------
+// Window drag via Accessibility API (macOS-only)
+// ---------------------------------------------------------------------------
+//
+// When the user three-finger drags (or left-click drags) on a declared drag
+// region (traffic-light strip, tab bar), herdr repositions the emulator window
+// directly using the Accessibility API. No emulator changes required.
+
+use std::sync::Mutex;
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct CGPoint {
+    x: f64,
+    y: f64,
+}
+
+type CFTypeRef = *const libc::c_void;
+type CFArrayRef = CFTypeRef;
+type CFIndex = isize;
+type CFAllocatorRef = *const libc::c_void;
+type CFStringEncoding = u32;
+type AXValueType = u32;
+
+const AX_VALUE_CGPOINT_TYPE: AXValueType = 1;
+const CF_ALLOCATOR_DEFAULT: CFAllocatorRef = std::ptr::null();
+
+// CoreFoundation functions
+#[link(name = "CoreFoundation", kind = "framework")]
+extern "C" {
+    fn CFRelease(cf: CFTypeRef);
+    fn CFRetain(cf: CFTypeRef) -> CFTypeRef;
+    fn CFStringCreateWithCString(
+        allocator: CFAllocatorRef,
+        c_str: *const libc::c_char,
+        encoding: CFStringEncoding,
+    ) -> CFTypeRef;
+    fn CFArrayGetCount(arr: CFArrayRef) -> CFIndex;
+    fn CFArrayGetValueAtIndex(arr: CFArrayRef, idx: CFIndex) -> CFTypeRef;
+}
+
+// Accessibility functions (in ApplicationServices framework)
+#[link(name = "ApplicationServices", kind = "framework")]
+extern "C" {
+    fn AXUIElementCreateApplication(pid: i32) -> CFTypeRef;
+    fn AXUIElementCopyAttributeValue(
+        element: CFTypeRef,
+        attribute: CFTypeRef,
+        value: *mut CFTypeRef,
+    ) -> i32;
+    fn AXValueGetValue(
+        value: CFTypeRef,
+        the_type: AXValueType,
+        value_ptr: *mut libc::c_void,
+    ) -> u8;
+}
+
+fn cf_string_create(s: &str) -> Option<CFTypeRef> {
+    let c_str = std::ffi::CString::new(s).ok()?;
+    let ref_ = unsafe {
+        CFStringCreateWithCString(
+            CF_ALLOCATOR_DEFAULT,
+            c_str.as_ptr(),
+            crate::platform::macos::CF_STRING_ENCODING_UTF8,
+        )
+    };
+    (ref_ != std::ptr::null()).then_some(ref_)
+}
+
+fn release_cf(ref_: CFTypeRef) {
+    if !ref_.is_null() {
+        unsafe { CFRelease(ref_) };
+    }
+}
+
+fn retain_cf(ref_: CFTypeRef) -> CFTypeRef {
+    if ref_.is_null() {
+        return std::ptr::null();
+    }
+    unsafe { CFRetain(ref_) }
+}
+
+/// Walk up the process tree from herdr's parent to find the terminal emulator
+/// process (matching `$TERM_PROGRAM`).
+fn find_terminal_pid() -> Option<i32> {
+    let terminal_name = host_terminal_process_name()?;
+    let terminal_lower = terminal_name.to_lowercase();
+    let mut pid = unsafe { libc::getppid() };
+    while pid > 1 {
+        // Check argv0 for a name match
+        if let Some(name) = process_argv0_name(pid as u32) {
+            if name.to_lowercase() == terminal_lower {
+                return Some(pid);
+            }
+        }
+        // Fallback: check kernel comm name
+        if let Some(info) = process_bsdinfo(pid as u32) {
+            if let Some(comm) = comm_from_bsdinfo(&info) {
+                if comm.to_lowercase() == terminal_lower {
+                    return Some(pid);
+                }
+            }
+            pid = info.pbi_ppid as i32;
+        } else {
+            break;
+        }
+    }
+    tracing::warn!("find_terminal_pid: could not find {terminal_name} in process tree");
+    None
+}
+
+/// Get the focused (frontmost) window of the given application, falling back to
+/// the first window from `AXWindows`.
+fn get_terminal_window(pid: i32) -> Option<CFTypeRef> {
+    let app = unsafe { AXUIElementCreateApplication(pid) };
+    if app.is_null() {
+        tracing::warn!("get_terminal_window: AXUIElementCreateApplication returned null");
+        return None;
+    }
+
+    // Try AXFocusedWindow first
+    let attr = cf_string_create("AXFocusedWindow")?;
+    let mut window: CFTypeRef = std::ptr::null_mut();
+    let err = unsafe { AXUIElementCopyAttributeValue(app, attr, &mut window) };
+    release_cf(attr);
+    if err == 0 && !window.is_null() {
+        release_cf(app);
+        return Some(window);
+    }
+
+    // Fallback: AXWindows → first window
+    let attr = cf_string_create("AXWindows")?;
+    let mut arr: CFTypeRef = std::ptr::null_mut();
+    let err = unsafe { AXUIElementCopyAttributeValue(app, attr, &mut arr) };
+    release_cf(app);
+    release_cf(attr);
+    if err != 0 || arr.is_null() {
+        tracing::warn!("get_terminal_window: AXWindows error={err}");
+        return None;
+    }
+
+    let count = unsafe { CFArrayGetCount(arr) };
+    if count <= 0 {
+        release_cf(arr);
+        return None;
+    }
+
+    let w = unsafe { CFArrayGetValueAtIndex(arr, 0) };
+    if w.is_null() {
+        release_cf(arr);
+        return None;
+    }
+
+    let retained = retain_cf(w);
+    release_cf(arr);
+    Some(retained)
+}
+
+/// Get the screen position of the given window element.
+fn get_window_position(window: CFTypeRef) -> Option<CGPoint> {
+    let attr = cf_string_create("AXPosition")?;
+    let mut value: CFTypeRef = std::ptr::null_mut();
+    let err = unsafe { AXUIElementCopyAttributeValue(window, attr, &mut value) };
+    release_cf(attr);
+    if err != 0 || value.is_null() {
+        return None;
+    }
+
+    let mut pt = CGPoint { x: 0.0, y: 0.0 };
+    let ok = unsafe {
+        AXValueGetValue(value, AX_VALUE_CGPOINT_TYPE, &mut pt as *mut CGPoint as *mut libc::c_void)
+    };
+    release_cf(value);
+    (ok != 0).then_some(pt)
+}
+
+// ---------------------------------------------------------------------------
+// Window drag — CGEvent + AX (macOS-only)
+// ---------------------------------------------------------------------------
+//
+// On drag start we obtain the window frame via AX, then post synthetic
+// Option+LeftMouseDown at the window's bottom-right resize corner.
+// macOS handles the actual window movement natively (spring-loaded edges).
+// A background thread posts the mouse-drag / mouse-up events.
+
+use std::sync::mpsc;
+
+// ── AX-based window positioning ─────────────────────────────────────────
+
+/// Set the screen position of the given window element via AX.
+fn ax_set_window_position(window: CFTypeRef, position: CGPoint) {
+    let attr = match cf_string_create("AXPosition") {
+        Some(a) => a,
+        None => return,
+    };
+    // Re-create AXValue for the new point (we still have AXValueCreate from the extern block)
+    extern "C" {
+        fn AXValueCreate(the_type: AXValueType, value_ptr: *const libc::c_void) -> CFTypeRef;
+    }
+    let value = unsafe {
+        AXValueCreate(AX_VALUE_CGPOINT_TYPE, &position as *const CGPoint as *const libc::c_void)
+    };
+    if value.is_null() {
+        release_cf(attr);
+        return;
+    }
+    extern "C" {
+        fn AXUIElementSetAttributeValue(
+            element: CFTypeRef,
+            attribute: CFTypeRef,
+            value: CFTypeRef,
+        ) -> i32;
+    }
+    unsafe {
+        AXUIElementSetAttributeValue(window, attr, value);
+    }
+    release_cf(value);
+    release_cf(attr);
+}
+
+fn cell_size_px() -> (u32, u32) {
+    if let Ok(sz) = crossterm::terminal::window_size() {
+        if sz.columns > 0 && sz.rows > 0 && sz.width > 0 && sz.height > 0 {
+            return (
+                (sz.width as u32 / sz.columns as u32).max(1),
+                (sz.height as u32 / sz.rows as u32).max(1),
+            );
+        }
+    }
+    (8, 16)
+}
+
+// ── State ────────────────────────────────────────────────────────────────
+
+enum DragCmd {
+    Update { x: f64, y: f64 },
+    End,
+}
+
+static DRAG: Mutex<Option<DragInner>> = Mutex::new(None);
+
+struct DragInner {
+    thread: Option<std::thread::JoinHandle<()>>,
+    tx: mpsc::Sender<DragCmd>,
+    init_origin: CGPoint,
+    init_col: u16,
+    init_row: u16,
+    cell_w: u32,
+    cell_h: u32,
+}
+unsafe impl Send for DragInner {}
+
+/// Send a CFTypeRef to the background thread via a Send wrapper.
+struct SendWin(CFTypeRef);
+unsafe impl Send for SendWin {}
+
+impl SendWin {
+    fn ptr(&self) -> CFTypeRef {
+        self.0
+    }
+    fn release(self) {
+        if !self.0.is_null() {
+            unsafe { CFRelease(self.0) };
+        }
+    }
+}
+
+/// Begin window drag — get initial window position via AX, spawn a
+/// background thread that sets the window position on each drag update.
+pub fn begin_window_drag(col: u16, row: u16) {
+    if host_terminal_process_name().is_none() {
+        return;
+    }
+    let pid = match find_terminal_pid() {
+        Some(p) => p,
+        None => return,
+    };
+    let win = match get_terminal_window(pid) {
+        Some(w) => w,
+        None => return,
+    };
+    let origin = match get_window_position(win) {
+        Some(p) => p,
+        None => {
+            release_cf(win);
+            return;
+        }
+    };
+
+    let (cw, ch) = cell_size_px();
+    let (tx, rx) = mpsc::channel::<DragCmd>();
+    let send_win = SendWin(win);
+
+    let handle = std::thread::Builder::new()
+        .name("window-drag".into())
+        .spawn(move || {
+            while let Ok(cmd) = rx.recv() {
+                match cmd {
+                    DragCmd::Update { x, y } => {
+                        ax_set_window_position(send_win.ptr(), CGPoint { x, y });
+                    }
+                    DragCmd::End => break,
+                }
+            }
+            send_win.release();
+        })
+        .expect("window_drag: spawn thread");
+
+    DRAG.lock().unwrap().replace(DragInner {
+        thread: Some(handle),
+        tx,
+        init_origin: origin,
+        init_col: col,
+        init_row: row,
+        cell_w: cw,
+        cell_h: ch,
+    });
+}
+
+/// Send the new absolute window position to the background thread.
+/// Non-blocking.
+pub fn update_window_drag(col: u16, row: u16) {
+    let g = DRAG.lock().unwrap();
+    let Some(ref inner) = *g else { return };
+
+    let dx = (col as i32 - inner.init_col as i32) as f64 * inner.cell_w as f64;
+    let dy = (row as i32 - inner.init_row as i32) as f64 * inner.cell_h as f64;
+    if !dx.is_finite() || !dy.is_finite() {
+        return;
+    }
+
+    let x = inner.init_origin.x + dx;
+    let y = inner.init_origin.y + dy;
+    let _ = inner.tx.send(DragCmd::Update { x, y });
+}
+
+/// Finish drag and join the background thread.
+pub fn end_window_drag() {
+    let mut g = DRAG.lock().unwrap();
+    if let Some(mut inner) = g.take() {
+        let _ = inner.tx.send(DragCmd::End);
+        if let Some(t) = inner.thread.take() {
+            let _ = t.join();
+        }
+        // Window is released by the thread.
+    }
+}

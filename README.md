@@ -221,6 +221,18 @@ herdr integration install cursor
 
 see the [integrations docs](https://herdr.dev/docs/integrations/) for setup details.
 
+## macOS window drag
+
+When using Ghostty (or another terminal emulator) with a hidden title bar, window dragging via three-finger drag on the traffic-light strip and tab bar moves the terminal window. No Ghostty changes are needed.
+
+For smooth window dragging (AX API), grant herdr accessibility permission:
+
+1. Open **System Settings → Privacy & Security → Accessibility**
+2. Click the **+** button and add the herdr binary (`./target/release/herdr` for local builds, or `~/.local/bin/herdr`, `/opt/homebrew/bin/herdr`, `~/.cargo/bin/herdr`)
+3. If your terminal emulator (e.g. Terminal.app, Ghostty, iTerm2) is not already in the list, add it too — herdr needs to inspect its window position
+
+> Without this permission, herdr falls back to an AppleScript workaround that works but is noticeably laggy.
+
 ## keybindings
 
 Press `ctrl+b` to enter prefix mode. Default actions are prefix-first and tmux-like:

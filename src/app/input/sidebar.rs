@@ -547,7 +547,7 @@ mod tests {
     }
 
     #[test]
-    fn clicking_red_traffic_light_does_not_detach() {
+    fn clicking_red_traffic_light_starts_window_drag() {
         let mut app = app_for_mouse_test();
         app.state.show_sidebar_quit_button = true;
         app.state.detach_exits = false;
@@ -561,6 +561,12 @@ mod tests {
 
         assert!(!app.state.detach_requested);
         assert!(!app.state.should_quit);
+        assert!(matches!(
+            app.state.drag,
+            Some(crate::app::state::DragState {
+                target: crate::app::state::DragTarget::WindowDrag,
+            })
+        ));
     }
 
     #[test]

@@ -76,3 +76,7 @@ pub fn host_window_minimize() {}
 
 /// Maximize (fullscreen) the host terminal window. macOS traffic-light green button.
 pub fn host_window_maximize() {}
+
+pub fn begin_window_drag(_col: u16, _row: u16) {}
+pub fn update_window_drag(_col: u16, _row: u16) {}
+pub fn end_window_drag() {}

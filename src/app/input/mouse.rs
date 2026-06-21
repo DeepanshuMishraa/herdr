@@ -389,6 +389,8 @@ impl AppState {
                             && mouse.row >= rect.y
                             && mouse.row < rect.y + rect.height
                     };
+
+                    // Individual traffic-light clicks: close / minimise / maximise
                     if in_light(red) {
                         crate::platform::host_window_close();
                         return None;
@@ -399,6 +401,20 @@ impl AppState {
                     }
                     if in_light(green) {
                         crate::platform::host_window_maximize();
+                        return None;
+                    }
+
+                    // Spacing columns in the strip (columns 1 / 3) → window drag
+                    let strip = if red != Rect::default() {
+                        Rect::new(red.x, red.y, 5, red.height)
+                    } else {
+                        Rect::default()
+                    };
+                    if in_light(strip) {
+                        crate::platform::begin_window_drag(mouse.column, mouse.row);
+                        self.drag = Some(DragState {
+                            target: DragTarget::WindowDrag,
+                        });
                         return None;
                     }
                 }
@@ -485,6 +501,15 @@ impl AppState {
                         self.request_new_tab = true;
                         self.mode = Mode::Terminal;
                     }
+                    return None;
+                }
+
+                // click on tab bar but not on any specific element → window drag
+                if self.on_tab_bar(mouse.column, mouse.row) {
+                    crate::platform::begin_window_drag(mouse.column, mouse.row);
+                    self.drag = Some(DragState {
+                        target: DragTarget::WindowDrag,
+                    });
                     return None;
                 }
 
@@ -763,6 +788,9 @@ impl AppState {
                         DragTarget::SidebarSectionDivider => {
                             self.set_sidebar_section_split(mouse.row);
                         }
+                        DragTarget::WindowDrag => {
+                            crate::platform::update_window_drag(mouse.column, mouse.row);
+                        }
                         DragTarget::ReleaseNotesScrollbar { .. }
                         | DragTarget::ProductAnnouncementScrollbar { .. }
                         | DragTarget::KeybindHelpScrollbar { .. } => {}
@@ -826,6 +854,11 @@ impl AppState {
                             self.move_tab(source_tab_idx, insert_idx);
                             self.mode = Mode::Terminal;
                         }
+                    }
+                    Some(DragState {
+                        target: DragTarget::WindowDrag,
+                    }) => {
+                        crate::platform::end_window_drag();
                     }
                     Some(_) => {}
                     None => {
