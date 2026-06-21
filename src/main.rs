@@ -92,6 +92,7 @@ mod sound;
 mod terminal;
 mod terminal_notify;
 mod terminal_theme;
+mod theme_sync;
 mod ui;
 mod update;
 mod workspace;

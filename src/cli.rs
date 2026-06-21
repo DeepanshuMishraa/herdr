@@ -63,6 +63,7 @@ pub fn maybe_run(args: &[String]) -> std::io::Result<CommandOutcome> {
         "wait" => run_wait_command(&args[2..])?,
         "integration" => integration::run_integration_command(&args[2..])?,
         "session" => run_session_command(&args[2..])?,
+        "theme" => run_theme_command(&args[2..])?,
         _ => return Ok(CommandOutcome::NotCli),
     };
 
@@ -978,6 +979,143 @@ fn print_session_help() {
 
 fn _print_json<T: Serialize>(value: &T) {
     println!("{}", serde_json::to_string(value).unwrap());
+}
+
+fn run_theme_command(args: &[String]) -> std::io::Result<i32> {
+    let Some(subcommand) = args.first().map(|arg| arg.as_str()) else {
+        print_theme_help();
+        return Ok(2);
+    };
+
+    match subcommand {
+        "apply" => theme_apply(&args[1..]),
+        "list" => theme_list(),
+        "status" => theme_status(),
+        "help" | "--help" | "-h" => {
+            print_theme_help();
+            Ok(0)
+        }
+        _ => {
+            print_theme_help();
+            Ok(2)
+        }
+    }
+}
+
+fn theme_apply(args: &[String]) -> std::io::Result<i32> {
+    let mut dry_run = false;
+    let mut theme_name = None;
+
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--dry-run" => dry_run = true,
+            name => {
+                if theme_name.is_some() {
+                    eprintln!("usage: herdr theme apply <name> [--dry-run]");
+                    return Ok(2);
+                }
+                theme_name = Some(name.to_string());
+            }
+        }
+        i += 1;
+    }
+
+    let Some(name) = theme_name else {
+        eprintln!("usage: herdr theme apply <name> [--dry-run]");
+        return Ok(2);
+    };
+
+    if !crate::theme_sync::validate_theme_name(&name) {
+        eprintln!("theme {name:?} is not a known herdr theme");
+        eprintln!("run `herdr theme list` to see available themes");
+        return Ok(1);
+    }
+
+    if dry_run {
+        println!("[dry-run] would apply theme {name:?} to the following tools:\n");
+    }
+
+    let result = crate::theme_sync::apply_theme(&name, dry_run);
+
+    let mut updated = 0;
+    let mut skipped = 0;
+    let mut errors = 0;
+
+    for tool_result in &result.results {
+        let config_display = tool_result.config_path.display();
+        match &tool_result.status {
+            crate::theme_sync::ApplyStatus::Updated => {
+                updated += 1;
+                println!("  ✓ {:<12} {config_display}", tool_result.name);
+            }
+            crate::theme_sync::ApplyStatus::Skipped(reason) => {
+                skipped += 1;
+                println!("  - {:<12} {config_display}  ({reason})", tool_result.name);
+            }
+            crate::theme_sync::ApplyStatus::Error(err) => {
+                errors += 1;
+                eprintln!("  ✗ {:<12} {config_display}: {err}", tool_result.name);
+            }
+        }
+    }
+
+    if dry_run {
+        println!("\nwould update {updated} tool(s), skip {skipped}, error {errors}");
+    } else {
+        println!(
+            "\napplied {name:?}: {updated} tool(s) updated, {skipped} skipped, {errors} error(s)"
+        );
+        println!("global state written to ~/.config/themes/settings.json");
+    }
+
+    Ok(if errors > 0 { 1 } else { 0 })
+}
+
+fn theme_list() -> std::io::Result<i32> {
+    let builtin_names = crate::theme_sync::list_builtin_theme_names();
+    println!("built-in themes:");
+    for name in builtin_names {
+        println!("  {name}");
+    }
+    // Check for external themes
+    let external_dir = crate::config::external_themes_dir();
+    if external_dir.exists() {
+        let external_names = crate::config::external_theme_names();
+        if !external_names.is_empty() {
+            println!("\nexternal themes ({}):", external_dir.display());
+            for name in external_names {
+                println!("  {name}");
+            }
+        }
+    }
+    Ok(0)
+}
+
+fn theme_status() -> std::io::Result<i32> {
+    match crate::theme_sync::read_global_state() {
+        Some(state) => {
+            println!("global theme: {}", state.theme);
+            println!("applied at:   {}", state.applied_at);
+            println!("\ntools:");
+            for (tool, entry) in &state.tools {
+                println!("  {:<12} {}  ({})", tool, entry.theme, entry.config);
+            }
+            Ok(0)
+        }
+        None => {
+            println!("no global theme has been applied yet.");
+            println!("use `herdr theme apply <name>` to set one.");
+            Ok(0)
+        }
+    }
+}
+
+fn print_theme_help() {
+    eprintln!("herdr theme commands:");
+    eprintln!("  herdr theme apply <name> [--dry-run]  apply a theme across all detected tools");
+    eprintln!("  herdr theme list                      show available theme names");
+    eprintln!("  herdr theme status                    show the current global theme state");
 }
 
 #[cfg(test)]
