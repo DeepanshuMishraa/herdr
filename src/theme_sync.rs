@@ -437,7 +437,7 @@ fn apply_to_tool(
         "herdr" => apply_to_herdr(tool, mapping),
         "pi-agent" => apply_to_pi_agent(tool, mapping, pal),
         "neovim" => apply_to_neovim(tool, mapping, pal),
-        "zed" => apply_to_zed(tool, mapping),
+        "zed" => apply_to_zed(tool, mapping, pal),
         "tmux" => apply_to_tmux(tool, mapping),
         "ghostty" => apply_to_ghostty(tool, mapping),
         "opencode" => apply_to_opencode(tool, mapping, pal),
@@ -903,76 +903,405 @@ h(0, "LspReferenceWrite", {{ bg = "{surface1}" }})
     let _ = std::fs::write(&file_path, lua);
 }
 
-fn apply_to_zed(tool: &DetectedTool, mapping: &ToolThemeMapping) -> ApplyStatus {
+fn apply_to_zed(tool: &DetectedTool, mapping: &ToolThemeMapping, pal: &crate::app::state::Palette) -> ApplyStatus {
     let content = match read_config_text(&tool.config_path) {
         Ok(c) => c,
         Err(e) => return ApplyStatus::Error(e),
     };
 
-    // Zed settings.json can be JSONC (with comments). Use index-based processing.
-    let all_lines: Vec<&str> = content.lines().collect();
-    let mut lines: Vec<String> = Vec::new();
-    let mut i = 0;
-    let mut found = false;
+    // Step 1: Generate a zed theme file at ~/.config/zed/themes/herdr.json
+    // with colors from herdr's palette. Zed discovers themes from this directory.
+    let themes_dir = tool.config_path.parent().unwrap().join("themes");
+    let _ = std::fs::create_dir_all(&themes_dir);
+    generate_zed_theme_file(&themes_dir, "herdr", pal);
 
-    while i < all_lines.len() {
-        let raw_line = all_lines[i];
-        let trimmed = raw_line.trim();
+    // Step 2: Update settings.json to point to "herdr dark"
+    let cleaned = strip_jsonc_comments(&content);
+    let last_obj = find_last_json_object(&cleaned);
 
-        if trimmed.starts_with("\"theme\":") || trimmed.starts_with("\"theme\" :") {
-            let indent = &raw_line[..raw_line.len() - raw_line.trim_start().len()];
-            if trimmed.contains('{') {
-                // Object form: "theme": { "mode": "...", "light": "...", "dark": "..." }
-                // Emit the opening line and skip ahead past the entire object block,
-                // replacing any "dark" key as we go.
-                let mut obj_lines = vec![format!("{indent}\"theme\": {{")];
-                i += 1;
-                while i < all_lines.len() {
-                    let obj_line = all_lines[i];
-                    let t = obj_line.trim();
-                    if t.starts_with('}') || t.starts_with("},") {
-                        obj_lines.push(format!("{indent}}},"));
-                        i += 1;
-                        break;
-                    }
-                    if t.starts_with("\"dark\":") || t.starts_with("\"dark\" :") {
-                        obj_lines.push(format!("{indent}  \"dark\": \"{}\",", mapping.zed));
-                    } else {
-                        obj_lines.push(format!("{indent}  {}", obj_line.trim()));
-                    }
-                    i += 1;
+    let last_valid = match last_obj {
+        Some(obj) => obj,
+        None => return apply_to_zed_line_based(tool, mapping, &content),
+    };
+
+    let mut value: serde_json::Value = match serde_json::from_str(last_valid) {
+        Ok(v) => v,
+        Err(_) => return apply_to_zed_line_based(tool, mapping, &content),
+    };
+
+    // Set the theme to reference our generated "herdr dark" theme
+    if let Some(obj) = value.as_object_mut() {
+        obj.insert(
+            "theme".into(),
+            serde_json::json!({
+                "mode": "system",
+                "light": "herdr light",
+                "dark": "herdr dark",
+            }),
+        );
+    }
+
+    let updated = match serde_json::to_string_pretty(&value) {
+        Ok(s) => s,
+        Err(err) => return ApplyStatus::Error(format!("serialization failed: {err}")),
+    };
+
+    write_config(&tool.config_path, &format!("{updated}\n"))
+}
+
+/// Generate a zed theme family file at ~/.config/zed/themes/herdr.json
+/// with dark and light variants mapped from herdr's palette.
+fn generate_zed_theme_file(themes_dir: &Path, name: &str, pal: &crate::app::state::Palette) {
+    let h = |c: &Color| color_to_hex(c);
+    let bg = h(&pal.panel_bg);
+    let fg = h(&pal.text);
+    let surface0 = h(&pal.surface0);
+    let surface1 = h(&pal.surface1);
+    let surface_dim = h(&pal.surface_dim);
+    let sep = h(&pal.separator);
+    let sub = h(&pal.subtext0);
+    let over0 = h(&pal.overlay0);
+    let over1 = h(&pal.overlay1);
+    let acc = h(&pal.accent);
+    let mauve = h(&pal.mauve);
+    let green = h(&pal.green);
+    let yellow = h(&pal.yellow);
+    let red = h(&pal.red);
+    let blue = h(&pal.blue);
+    let teal = h(&pal.teal);
+    let peach = h(&pal.peach);
+    let active_bg = h(&pal.active_space_bg);
+
+    let mut style: BTreeMap<String, serde_json::Value> = BTreeMap::new();
+    macro_rules! kv {
+        ($k:expr, $v:expr) => { style.insert($k.into(), serde_json::Value::String(::std::clone::Clone::clone(&$v))); };
+    }
+    macro_rules! kvn {
+        ($k:expr) => { style.insert($k.into(), serde_json::Value::Null); };
+    }
+    kv!("background", bg);
+    kv!("foreground", fg);
+    kv!("text", fg);
+    kv!("text.muted", sub);
+    kv!("text.accent", acc);
+    kv!("text.disabled", over0);
+    kv!("text.placeholder", over0);
+    kv!("border", sep);
+    kv!("border.variant", surface0);
+    kv!("border.selected", acc);
+    kv!("border.focused", acc);
+    kv!("icon", sub);
+    kv!("icon.accent", acc);
+    kv!("icon.muted", over0);
+    kv!("icon.disabled", over1);
+    kv!("surface.background", surface0);
+    kv!("elevated_surface.background", surface1);
+    kv!("element.background", surface1);
+    kv!("element.hover", surface1);
+    kv!("element.active", surface0);
+    kv!("element.selected", surface0);
+    kv!("element.disabled", surface_dim);
+    kv!("ghost_element.background", bg);
+    kv!("ghost_element.hover", surface0);
+    kv!("ghost_element.selected", surface0);
+    kv!("ghost_element.active", surface_dim);
+    kv!("ghost_element.disabled", surface_dim);
+    kv!("panel.background", active_bg);
+    kv!("panel.focused_border", acc);
+    kv!("tab_bar.background", surface_dim);
+    kv!("tab.active_background", surface0);
+    kv!("tab.inactive_background", surface_dim);
+    kv!("title_bar.background", surface_dim);
+    kv!("title_bar.inactive_background", surface_dim);
+    kv!("status_bar.background", active_bg);
+    kv!("toolbar.background", bg);
+    kv!("editor.background", bg);
+    kv!("editor.foreground", fg);
+    kv!("editor.active_line.background", surface0);
+    kv!("editor.highlighted_line.background", surface0);
+    kv!("editor.line_number", over0);
+    kv!("editor.active_line_number", over1);
+    kv!("editor.gutter.background", bg);
+    kv!("editor.indent_guide", surface0);
+    kv!("editor.indent_guide_active", sep);
+    kv!("editor.invisible", over0);
+    kv!("editor.wrap_guide", surface0);
+    kv!("editor.active_wrap_guide", sep);
+    kv!("editor.document_highlight.read_background", surface1);
+    kv!("editor.document_highlight.write_background", surface1);
+    kv!("editor.document_highlight.bracket_background", surface1);
+    kv!("pane.focused_border", acc);
+    kv!("pane_group.border", sep);
+    kv!("scrollbar.track.background", bg);
+    kv!("scrollbar.track.border", sep);
+    kv!("scrollbar.thumb.background", surface0);
+    kv!("scrollbar.thumb.border", sep);
+    kv!("scrollbar.thumb.hover_background", surface1);
+    kv!("search.match_background", surface1);
+    kv!("drop_target.background", surface1);
+
+    kv!("error", red);
+    kvn!("error.background");
+    kv!("error.border", red);
+    kv!("warning", yellow);
+    kvn!("warning.background");
+    kv!("warning.border", yellow);
+    kv!("info", blue);
+    kvn!("info.background");
+    kv!("info.border", blue);
+    kv!("hint", teal);
+    kvn!("hint.background");
+    kv!("hint.border", teal);
+    kv!("success", green);
+    kvn!("success.background");
+    kv!("success.border", green);
+    kv!("conflict", peach);
+    kvn!("conflict.background");
+    kv!("conflict.border", peach);
+    kv!("created", green);
+    kvn!("created.background");
+    kv!("created.border", green);
+    kv!("deleted", red);
+    kvn!("deleted.background");
+    kv!("deleted.border", red);
+    kv!("modified", yellow);
+    kvn!("modified.background");
+    kv!("modified.border", yellow);
+    kv!("renamed", blue);
+    kvn!("renamed.background");
+    kv!("renamed.border", blue);
+    kv!("ignored", over0);
+    kvn!("ignored.background");
+    kv!("ignored.border", over0);
+    kv!("hidden", over0);
+    kvn!("hidden.background");
+    kv!("hidden.border", over0);
+    kv!("unreachable", over0);
+    kvn!("unreachable.background");
+    kv!("unreachable.border", over0);
+    kv!("predictive", over0);
+    kvn!("predictive.background");
+    kv!("predictive.border", over0);
+    kv!("link_text.hover", acc);
+    kv!("terminal.background", bg);
+    kv!("terminal.foreground", fg);
+    kv!("terminal.bright_foreground", fg);
+    kv!("terminal.dim_foreground", over0);
+    kv!("terminal.ansi.black", surface_dim);
+    kv!("terminal.ansi.bright_black", over0);
+    kv!("terminal.ansi.dim_black", surface_dim);
+    kv!("terminal.ansi.red", red);
+    kv!("terminal.ansi.bright_red", red);
+    kv!("terminal.ansi.dim_red", red);
+    kv!("terminal.ansi.green", green);
+    kv!("terminal.ansi.bright_green", green);
+    kv!("terminal.ansi.dim_green", green);
+    kv!("terminal.ansi.yellow", yellow);
+    kv!("terminal.ansi.bright_yellow", yellow);
+    kv!("terminal.ansi.dim_yellow", yellow);
+    kv!("terminal.ansi.blue", blue);
+    kv!("terminal.ansi.bright_blue", blue);
+    kv!("terminal.ansi.dim_blue", blue);
+    kv!("terminal.ansi.magenta", mauve);
+    kv!("terminal.ansi.bright_magenta", mauve);
+    kv!("terminal.ansi.dim_magenta", mauve);
+    kv!("terminal.ansi.cyan", teal);
+    kv!("terminal.ansi.bright_cyan", teal);
+    kv!("terminal.ansi.dim_cyan", teal);
+    kv!("terminal.ansi.white", fg);
+    kv!("terminal.ansi.bright_white", fg);
+    kv!("terminal.ansi.dim_white", sub);
+    style.insert("accents".into(), serde_json::Value::Array(vec![serde_json::Value::String(acc)]));
+
+    // Syntax
+    let mut syntax = serde_json::Map::new();
+    syntax.insert("comment".into(), serde_json::json!({ "color": over0.clone(), "font_style": "italic" }));
+    let sc = |c: String| serde_json::json!({ "color": c });
+    syntax.insert("constant".into(), sc(peach.clone()));
+    syntax.insert("string".into(), sc(green.clone()));
+    syntax.insert("character".into(), sc(green.clone()));
+    syntax.insert("number".into(), sc(peach.clone()));
+    syntax.insert("boolean".into(), sc(peach.clone()));
+    syntax.insert("float".into(), sc(peach.clone()));
+    syntax.insert("builtin".into(), serde_json::json!({ "color": red.clone() }));
+    syntax.insert("function".into(), sc(blue.clone()));
+    syntax.insert("method".into(), sc(blue.clone()));
+    syntax.insert("constructor".into(), sc(blue.clone()));
+    syntax.insert("variable".into(), sc(fg.clone()));
+    syntax.insert("type".into(), sc(teal.clone()));
+    syntax.insert("keyword".into(), serde_json::json!({ "color": mauve.clone(), "font_style": "italic" }));
+    syntax.insert("label".into(), sc(mauve.clone()));
+    syntax.insert("namespace".into(), sc(teal.clone()));
+    syntax.insert("tag".into(), serde_json::json!({ "color": red.clone() }));
+    syntax.insert("parameter".into(), sc(fg.clone()));
+    syntax.insert("property".into(), sc(fg.clone()));
+    syntax.insert("field".into(), sc(fg.clone()));
+    syntax.insert("attribute".into(), sc(yellow.clone()));
+    syntax.insert("operator".into(), sc(teal.clone()));
+    syntax.insert("punctuation".into(), sc(fg.clone()));
+    syntax.insert("punctuation.bracket".into(), sc(fg.clone()));
+    syntax.insert("punctuation.delimiter".into(), sc(teal.clone()));
+    syntax.insert("punctuation.special".into(), sc(teal.clone()));
+    syntax.insert("string.special".into(), sc(green.clone()));
+    syntax.insert("string.regex".into(), sc(peach.clone()));
+    syntax.insert("string.escape".into(), sc(mauve.clone()));
+    syntax.insert("embedded".into(), sc(fg.clone()));
+    syntax.insert("comment.doc".into(), serde_json::json!({ "color": over0, "font_style": "italic" }));
+
+    style.insert("syntax".into(), serde_json::Value::Object(syntax));
+
+    let dark_theme = serde_json::json!({
+        "name": format!("{name} dark"),
+        "appearance": "dark",
+        "style": style,
+    });
+
+    let light_theme = serde_json::json!({
+        "name": format!("{name} light"),
+        "appearance": "light",
+        "style": style,
+    });
+
+    let theme_family = serde_json::json!({
+        "name": name,
+        "author": "herdr",
+        "themes": [dark_theme, light_theme],
+    });
+
+    let theme_path = themes_dir.join(format!("{name}.json"));
+    match serde_json::to_string_pretty(&theme_family) {
+        Ok(json) => {
+            if let Err(err) = std::fs::write(&theme_path, json) {
+                warn!("failed to write zed theme file: {err}");
+            }
+        }
+        Err(err) => {
+            warn!("failed to serialize zed theme: {err}");
+        }
+    }
+}
+
+/// Strip JSONC line comments (// ...) and trailing content from JSON.
+fn strip_jsonc_comments(content: &str) -> String {
+    content
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("//"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Find the last complete JSON object `{...}` in the text, returning its content.
+fn find_last_json_object(text: &str) -> Option<&str> {
+    // Search from the end for a balanced `{` ... `}`
+    let bytes = text.as_bytes();
+
+    // Find last `}`
+    let close = text.rfind('}')?;
+
+    // Walk backwards from close to find matching `{`
+    let mut depth = 0;
+    let mut start = close;
+    for pos in (0..=close).rev() {
+        match bytes[pos] {
+            b'}' => depth += 1,
+            b'{' => {
+                depth -= 1;
+                if depth == 0 {
+                    start = pos;
+                    break;
                 }
-                lines.extend(obj_lines);
-                found = true;
-                // Don't increment i — inner loop already advanced past the block
-                continue;
-            } else {
-                // String form: "theme": "Some Name"
-                lines.push(format!("{indent}\"theme\": \"{}\",", mapping.zed));
-                found = true;
+            }
+            _ => {}
+        }
+    }
+
+    if depth != 0 {
+        return None;
+    }
+
+    Some(&text[start..=close])
+}
+
+/// Fallback: extract only the last complete JSON document, parse it with
+/// trailing-comma support, update the theme, and write back a single clean file.
+fn apply_to_zed_line_based(tool: &DetectedTool, mapping: &ToolThemeMapping, content: &str) -> ApplyStatus {
+    // Strip JSONC line comments, remove trailing commas, then parse as strict JSON.
+    // This handles Zed's JSONC format (comments + trailing commas).
+    let cleaned = strip_jsonc_comments(content);
+    let fixed = fix_trailing_commas(&cleaned);
+
+    // Find the last complete JSON `{...}` in the fixed text
+    let last_block = match find_last_json_object(&fixed) {
+        Some(obj) => obj,
+        None => return ApplyStatus::Error("no valid JSON object found".into()),
+    };
+
+    let mut value: serde_json::Value = match serde_json::from_str(last_block) {
+        Ok(v) => v,
+        Err(err) => {
+            return ApplyStatus::Error(format!("failed to parse zed JSON: {err}"));
+        }
+    };
+
+    // Update the theme field
+    if let Some(obj) = value.as_object_mut() {
+        if let Some(theme) = obj.get_mut("theme") {
+            match theme {
+                serde_json::Value::String(_) => {
+                    *theme = serde_json::Value::String(mapping.zed.to_string());
+                }
+                serde_json::Value::Object(theme_obj) => {
+                    if theme_obj.contains_key("dark") || theme_obj.contains_key("light") {
+                        theme_obj.insert(
+                            "dark".into(),
+                            serde_json::Value::String(mapping.zed.to_string()),
+                        );
+                    } else {
+                        *theme = serde_json::Value::String(mapping.zed.to_string());
+                    }
+                }
+                _ => {
+                    *theme = serde_json::Value::String(mapping.zed.to_string());
+                }
             }
         } else {
-            lines.push(raw_line.to_string());
+            obj.insert(
+                "theme".into(),
+                serde_json::Value::String(mapping.zed.to_string()),
+            );
         }
-
-        i += 1;
     }
 
-    if !found {
-        // No theme line found — append one before the closing brace
-        if let Some(last) = lines.last_mut() {
-            if last.trim() == "}" || last.trim() == "}," {
-                *last = format!("  \"theme\": \"{}\",\n}}", mapping.zed);
-                found = true;
+    let updated = match serde_json::to_string_pretty(&value) {
+        Ok(s) => s,
+        Err(err) => return ApplyStatus::Error(format!("serialization failed: {err}")),
+    };
+
+    write_config(&tool.config_path, &format!("{updated}\n"))
+}
+
+/// Remove trailing commas before `}` or `]` in JSON text.
+fn fix_trailing_commas(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b',' {
+            // Look ahead past whitespace for `}` or `]`
+            let mut j = i + 1;
+            while j < bytes.len() && (bytes[j] == b' ' || bytes[j] == b'\t' || bytes[j] == b'\n' || bytes[j] == b'\r') {
+                j += 1;
+            }
+            if j < bytes.len() && (bytes[j] == b'}' || bytes[j] == b']') {
+                // Skip the comma — emit nothing
+                i += 1;
+                continue;
             }
         }
+        result.push(bytes[i] as char);
+        i += 1;
     }
-
-    if !found {
-        return ApplyStatus::Skipped("could not find or add theme field in zed settings".into());
-    }
-
-    write_config(&tool.config_path, &lines.join("\n"))
+    result
 }
 
 fn apply_to_tmux(tool: &DetectedTool, mapping: &ToolThemeMapping) -> ApplyStatus {
