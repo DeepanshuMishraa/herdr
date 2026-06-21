@@ -474,19 +474,21 @@ pub struct UiConfig {
     pub dim_auto_named_tabs: bool,
     /// Keep one blank column before desktop tab controls. Default: false.
     pub tab_bar_left_padding: bool,
+    /// Reserve one blank row above and below the tab bar content. Default: true.
+    pub tab_bar_vertical_padding: bool,
     /// Reserve and render a scrollbar column inside panes. Default: true.
     pub show_pane_scrollbars: bool,
-    /// Show the traffic-light quit button in the expanded desktop sidebar. Default: false.
+    /// Show the traffic-light quit button in the expanded desktop sidebar. Default: true.
     pub show_sidebar_quit_button: bool,
-    /// Show the "spaces" and "agents" labels in the expanded sidebar. Default: true.
+    /// Show the "spaces" and "agents" labels in the expanded sidebar. Default: false.
     pub show_sidebar_section_labels: bool,
     /// Move the agent sort toggle from the header to the bottom control row. Default: false.
     pub agent_sort_toggle_in_footer: bool,
-    /// Show the agent-panel grouped/priority toggle. Default: true.
+    /// Show the agent-panel grouped/priority toggle. Default: false.
     pub show_agent_sort_toggle: bool,
     /// Move the expanded sidebar collapse button one column inward. Default: false.
     pub inset_sidebar_collapse_button: bool,
-    /// Use compact icons for the new-space and global-menu actions. Default: false.
+    /// Use compact icons for the new-space and global-menu actions. Default: true.
     pub sidebar_action_icons: bool,
     /// Move the expanded sidebar menu action one column inward. Default: false.
     pub inset_sidebar_menu_button: bool,
@@ -684,13 +686,14 @@ impl Default for UiConfig {
             prompt_new_tab_name: true,
             dim_auto_named_tabs: true,
             tab_bar_left_padding: false,
+            tab_bar_vertical_padding: true,
             show_pane_scrollbars: true,
-            show_sidebar_quit_button: false,
-            show_sidebar_section_labels: true,
+            show_sidebar_quit_button: true,
+            show_sidebar_section_labels: false,
             agent_sort_toggle_in_footer: false,
-            show_agent_sort_toggle: true,
+            show_agent_sort_toggle: false,
             inset_sidebar_collapse_button: false,
-            sidebar_action_icons: false,
+            sidebar_action_icons: true,
             inset_sidebar_menu_button: false,
             shared_pane_borders: false,
             thick_focused_pane_border: true,
@@ -948,17 +951,20 @@ thick_focused_pane_border = false
         let default_config = Config::default();
         assert!(default_config.ui.dim_auto_named_tabs);
         assert!(!default_config.ui.tab_bar_left_padding);
+        assert!(default_config.ui.tab_bar_vertical_padding);
 
         let config: Config = toml::from_str(
             r#"
 [ui]
 dim_auto_named_tabs = false
 tab_bar_left_padding = true
+tab_bar_vertical_padding = false
 "#,
         )
         .unwrap();
         assert!(!config.ui.dim_auto_named_tabs);
         assert!(config.ui.tab_bar_left_padding);
+        assert!(!config.ui.tab_bar_vertical_padding);
     }
 
     #[test]
@@ -979,12 +985,12 @@ show_pane_scrollbars = false
     #[test]
     fn expanded_sidebar_customization_defaults_preserve_existing_layout_and_parse() {
         let default_config = Config::default();
-        assert!(default_config.ui.show_sidebar_section_labels);
-        assert!(!default_config.ui.show_sidebar_quit_button);
+        assert!(!default_config.ui.show_sidebar_section_labels);
+        assert!(default_config.ui.show_sidebar_quit_button);
         assert!(!default_config.ui.agent_sort_toggle_in_footer);
-        assert!(default_config.ui.show_agent_sort_toggle);
+        assert!(!default_config.ui.show_agent_sort_toggle);
         assert!(!default_config.ui.inset_sidebar_collapse_button);
-        assert!(!default_config.ui.sidebar_action_icons);
+        assert!(default_config.ui.sidebar_action_icons);
         assert!(!default_config.ui.inset_sidebar_menu_button);
 
         let config: Config = toml::from_str(

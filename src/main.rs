@@ -286,26 +286,27 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 
 # Keep one blank column before desktop tab controls.
 # tab_bar_left_padding = false
+# tab_bar_vertical_padding = true
 
 # Reserve and render a scrollbar column inside panes.
 # Set false to return that column to pane applications.
 # show_pane_scrollbars = true
 
 # Show a traffic-light quit button in the expanded desktop sidebar.
-# show_sidebar_quit_button = false
+# show_sidebar_quit_button = true
 
 # Show section labels in the expanded desktop sidebar.
-# show_sidebar_section_labels = true
+# show_sidebar_section_labels = false
 
 # Move the grouped/priority toggle to the bottom-left control row.
 # agent_sort_toggle_in_footer = false
-# show_agent_sort_toggle = true
+# show_agent_sort_toggle = false
 
 # Move the expanded sidebar collapse button one column inward.
 # inset_sidebar_collapse_button = false
 
 # Use compact icons for the new-space and global-menu actions.
-# sidebar_action_icons = false
+# sidebar_action_icons = true
 
 # Move the expanded sidebar menu action one column inward.
 # inset_sidebar_menu_button = false

@@ -256,15 +256,21 @@ pub(super) fn render_tab_bar(app: &AppState, frame: &mut Frame, area: Rect) {
     };
 
     let p = &app.palette;
-    let content_area = if app.tab_bar_left_padding {
-        Rect::new(
-            area.x.saturating_add(1),
-            area.y,
-            area.width.saturating_sub(1),
-            area.height,
-        )
-    } else {
-        area
+    let content_area = {
+        let mut c = area;
+        if app.tab_bar_vertical_padding && c.height > 1 {
+            c.height = c.height.saturating_sub(1);
+        }
+        if app.tab_bar_left_padding {
+            Rect::new(
+                c.x.saturating_add(1),
+                c.y,
+                c.width.saturating_sub(1),
+                c.height,
+            )
+        } else {
+            c
+        }
     };
 
     frame.render_widget(

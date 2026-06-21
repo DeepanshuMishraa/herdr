@@ -675,15 +675,16 @@ pub(crate) fn collapsed_sidebar_sections(area: Rect) -> (Rect, Option<u16>, Rect
         return (content, None, Rect::default());
     }
 
+    let top_pad = 1u16;
     let total_h = content.height as usize;
-    let ws_h = total_h.div_ceil(2);
-    let detail_h = total_h.saturating_sub(ws_h + 1);
+    let ws_h = total_h.div_ceil(2).saturating_sub(top_pad as usize);
+    let detail_h = total_h.saturating_sub(ws_h + top_pad as usize + 1);
     if ws_h == 0 || detail_h == 0 {
         return (content, None, Rect::default());
     }
 
-    let divider_y = content.y + ws_h as u16;
-    let ws_area = Rect::new(content.x, content.y, content.width, ws_h as u16);
+    let divider_y = content.y + top_pad + ws_h as u16;
+    let ws_area = Rect::new(content.x, content.y + top_pad, content.width, ws_h as u16);
     let detail_area = Rect::new(content.x, divider_y + 1, content.width, detail_h as u16);
     (ws_area, Some(divider_y), detail_area)
 }
@@ -1056,7 +1057,7 @@ fn render_workspace_list(
     if app.mouse_capture && list_bottom > area.y {
         let new_rect = app.sidebar_new_button_rect();
         let new_label = if app.sidebar_action_icons {
-            " 󰐕 "
+            "+"
         } else {
             " new"
         };
@@ -1072,7 +1073,7 @@ fn render_workspace_list(
             } else {
                 p.overlay0
             };
-            Line::from(vec![Span::styled("󰇘", Style::default().fg(color))])
+            Line::from(vec![Span::styled("...", Style::default().fg(color))])
         } else if app.global_menu_attention_badge_visible() {
             Line::from(vec![
                 Span::styled(
@@ -1311,6 +1312,8 @@ mod tests {
         let workspace_area = Rect::new(0, 0, 20, 10);
         let agent_area = Rect::new(0, 10, 20, 10);
 
+        app.show_sidebar_section_labels = true;
+        app.show_agent_sort_toggle = true;
         assert_eq!(
             workspace_list_body_rect(&app, workspace_area, false),
             Rect::new(0, 2, 20, 7)
@@ -1350,6 +1353,7 @@ mod tests {
     fn footer_sort_toggle_is_not_bold() {
         let mut app = crate::app::state::AppState::test_new();
         app.show_sidebar_section_labels = false;
+        app.show_agent_sort_toggle = true;
         app.agent_sort_toggle_in_footer = true;
         let area = Rect::new(0, 0, 20, 10);
         let toggle = agent_panel_toggle_rect(area, app.agent_panel_sort, true);

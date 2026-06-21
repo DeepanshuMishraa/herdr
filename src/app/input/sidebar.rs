@@ -176,8 +176,9 @@ impl AppState {
 
     pub(crate) fn sidebar_new_button_rect(&self) -> Rect {
         let footer = self.sidebar_footer_rect();
-        let width = if self.sidebar_action_icons { 3 } else { 5 }.min(footer.width.max(1));
-        Rect::new(footer.x, footer.y, width, footer.height)
+        let width = if self.sidebar_action_icons { 2 } else { 5 }.min(footer.width.max(1));
+        let left_pad = u16::from(self.sidebar_action_icons);
+        Rect::new(footer.x + left_pad, footer.y, width, footer.height)
     }
 
     pub(crate) fn global_launcher_rect(&self) -> Rect {
@@ -187,7 +188,7 @@ impl AppState {
 
         let footer = self.sidebar_footer_rect();
         let width = if self.sidebar_action_icons {
-            3
+            2
         } else if self.global_menu_attention_badge_visible() {
             8
         } else {
@@ -526,8 +527,8 @@ mod tests {
         let new_action = app.state.sidebar_new_button_rect();
         let menu = app.state.global_launcher_rect();
 
-        assert_eq!(new_action.width, 3);
-        assert_eq!(menu.width, 3);
+        assert_eq!(new_action.width, 2);
+        assert_eq!(menu.width, 2);
         assert_eq!(menu.x + menu.width, footer.x + footer.width - 1);
     }
 
@@ -741,7 +742,13 @@ mod tests {
         app.state.selected = 0;
         app.state.mode = Mode::Terminal;
 
-        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), 2, 16));
+        let detail_area = app.state.agent_panel_rect();
+        let body = crate::ui::agent_panel_body_rect(&app.state, detail_area, true);
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            body.x + 1,
+            body.y + 3,
+        ));
 
         assert_eq!(app.state.workspaces[0].active_tab, 1);
         assert_eq!(
@@ -765,6 +772,7 @@ mod tests {
         app.state.selected = 0;
         app.state.mode = Mode::Terminal;
         app.state.agent_panel_scroll = 3;
+        app.state.show_agent_sort_toggle = true;
 
         let (_, detail_area) = crate::ui::expanded_sidebar_sections(
             app.state.view.sidebar_rect,
@@ -814,6 +822,7 @@ mod tests {
         let mut app = app_for_mouse_test();
         let first = Workspace::test_new("one");
         let first_pane = first.tabs[0].root_pane;
+        let first_tab = 0;
 
         let second = Workspace::test_new("two");
         let second_pane = second.tabs[0].root_pane;
@@ -840,14 +849,12 @@ mod tests {
         app.state.selected = 0;
         app.state.mode = Mode::Terminal;
 
-        let (_, detail_area) = crate::ui::expanded_sidebar_sections(
-            app.state.view.sidebar_rect,
-            app.state.sidebar_section_split,
-        );
+        let detail_area = app.state.agent_panel_rect();
+        let body = crate::ui::agent_panel_body_rect(&app.state, detail_area, true);
         app.handle_mouse(mouse(
             MouseEventKind::Down(MouseButton::Left),
-            detail_area.x + 2,
-            detail_area.y + 6,
+            body.x + 1,
+            body.y + 3,
         ));
 
         assert_eq!(app.state.active, Some(1));
@@ -856,6 +863,13 @@ mod tests {
         assert_eq!(
             app.state.workspaces[1].tabs[0].layout.focused(),
             second_pane
+        );
+        assert_eq!(app.state.mode, Mode::Terminal);
+        let snapshot = capture_snapshot(&app.state);
+        assert_eq!(snapshot.workspaces[0].active_tab, first_tab);
+        assert_eq!(
+            snapshot.workspaces[0].tabs[first_tab].focused,
+            Some(first_pane.raw())
         );
     }
 
@@ -1441,7 +1455,7 @@ mod tests {
 
         assert_eq!(app.state.workspace_drop_index_at_row(0), Some(0));
         assert_eq!(app.state.workspace_drop_index_at_row(1), Some(0));
-        assert_eq!(app.state.workspace_drop_index_at_row(2), Some(0));
+        assert_eq!(app.state.workspace_drop_index_at_row(2), Some(1));
         assert_eq!(app.state.workspace_drop_index_at_row(3), Some(1));
 
         let _ = fs::remove_dir_all(first_repo);

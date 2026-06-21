@@ -243,8 +243,14 @@ fn compute_view_internal(
 
     let has_tabs = app.active.and_then(|i| app.workspaces.get(i)).is_some();
     let (tab_bar_rect, terminal_area) = if has_tabs && main_area.height > 1 {
+        let tab_bar_height = if app.tab_bar_vertical_padding {
+            2u16.min(main_area.height.saturating_sub(1))
+        } else {
+            1
+        };
         let [tab_bar_rect, terminal_area] =
-            Layout::vertical([Constraint::Length(1), Constraint::Min(1)]).areas(main_area);
+            Layout::vertical([Constraint::Length(tab_bar_height), Constraint::Min(1)])
+                .areas(main_area);
         (tab_bar_rect, terminal_area)
     } else {
         (Rect::default(), main_area)
