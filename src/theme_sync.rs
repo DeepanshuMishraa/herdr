@@ -12,6 +12,7 @@ struct ToolThemeMapping {
     tmux_flavour: Option<&'static str>,
     ghostty_bg: &'static str,
     opencode: &'static str,
+    hacktui: &'static str,
 }
 
 fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
@@ -23,6 +24,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: Some("macchiato"),
             ghostty_bg: "#1e1e2e",
             opencode: "catppuccin-macchiato",
+            hacktui: "catppuccin-macchiato",
         },
         "catppuccin-macchiato" | "macchiato" => &ToolThemeMapping {
             pi_agent: "catppuccin-macchiato",
@@ -30,6 +32,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: Some("macchiato"),
             ghostty_bg: "#24273a",
             opencode: "catppuccin-macchiato",
+hacktui: "catppuccin-macchiato",
         },
         "catppuccin-mocha" => &ToolThemeMapping {
             pi_agent: "catppuccin-macchiato",
@@ -37,6 +40,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: Some("macchiato"),
             ghostty_bg: "#1e1e2e",
             opencode: "catppuccin-macchiato",
+hacktui: "catppuccin-macchiato",
         },
         "catppuccin-latte" | "latte" | "light" => &ToolThemeMapping {
             pi_agent: "catppuccin-latte",
@@ -44,6 +48,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: Some("latte"),
             ghostty_bg: "#eff1f5",
             opencode: "catppuccin-latte",
+hacktui: "catppuccin-frappe",
         },
         "tokyo-night" | "tokyonight" => &ToolThemeMapping {
             pi_agent: "tokyo-night",
@@ -51,6 +56,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#1a1b26",
             opencode: "tokyo-night",
+hacktui: "tokyo-night",
         },
         "tokyo-night-day" | "tokyo-day" | "tokyonight-day" => &ToolThemeMapping {
             pi_agent: "tokyo-night",
@@ -58,6 +64,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#e1e2e7",
             opencode: "tokyo-night-day",
+hacktui: "tokyo-night",
         },
         "dracula" => &ToolThemeMapping {
             pi_agent: "dracula",
@@ -65,6 +72,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#282a36",
             opencode: "dracula",
+hacktui: "dracula",
         },
         "nord" => &ToolThemeMapping {
             pi_agent: "nord",
@@ -72,6 +80,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#2e3440",
             opencode: "nord",
+hacktui: "nord",
         },
         "gruvbox" | "gruvbox-dark" => &ToolThemeMapping {
             pi_agent: "gruvbox",
@@ -79,6 +88,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#282828",
             opencode: "gruvbox",
+hacktui: "gruvbox",
         },
         "gruvbox-light" => &ToolThemeMapping {
             pi_agent: "gruvbox-light",
@@ -86,6 +96,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#fbf1c7",
             opencode: "gruvbox-light",
+hacktui: "flexoki",
         },
         "one-dark" | "onedark" => &ToolThemeMapping {
             pi_agent: "one-dark",
@@ -93,6 +104,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#282c34",
             opencode: "one-dark",
+hacktui: "one-dark",
         },
         "one-light" | "onelight" => &ToolThemeMapping {
             pi_agent: "one-light",
@@ -100,6 +112,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#fafafa",
             opencode: "one-light",
+hacktui: "github",
         },
         "solarized" | "solarized-dark" => &ToolThemeMapping {
             pi_agent: "solarized",
@@ -107,6 +120,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#002b36",
             opencode: "solarized",
+hacktui: "solarized",
         },
         "solarized-light" => &ToolThemeMapping {
             pi_agent: "solarized-light",
@@ -114,6 +128,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#fdf6e3",
             opencode: "solarized-light",
+hacktui: "github",
         },
         "kanagawa" => &ToolThemeMapping {
             pi_agent: "kanagawa",
@@ -121,6 +136,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#1f1f28",
             opencode: "kanagawa",
+hacktui: "kanagawa",
         },
         "kanagawa-lotus" | "lotus" => &ToolThemeMapping {
             pi_agent: "kanagawa-lotus",
@@ -128,6 +144,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#f4edd9",
             opencode: "kanagawa-lotus",
+hacktui: "kanagawa",
         },
         "rose-pine" | "rosepine" => &ToolThemeMapping {
             pi_agent: "rose-pine",
@@ -135,6 +152,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#191724",
             opencode: "rose-pine",
+hacktui: "rose-pine",
         },
         "rose-pine-dawn" | "rosepine-dawn" | "dawn" => &ToolThemeMapping {
             pi_agent: "rose-pine",
@@ -142,6 +160,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#faf4ed",
             opencode: "rose-pine-dawn",
+hacktui: "rose-pine",
         },
         "vesper" => &ToolThemeMapping {
             pi_agent: "vesper",
@@ -149,6 +168,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: None,
             ghostty_bg: "#101010",
             opencode: "vesper",
+hacktui: "vesper",
         },
         _ => return None,
     };
@@ -291,6 +311,18 @@ pub fn detect_tools() -> Vec<DetectedTool> {
         tools.push(DetectedTool {
             name: "opencode",
             config_path: opencode_path,
+        });
+    }
+
+    // Hacktui: check for binary and cache directory
+    let hacktui_paths = [
+        home.join(".bun/bin/hacktui"),
+        PathBuf::from("/usr/local/bin/hacktui"),
+    ];
+    if hacktui_paths.iter().any(|p| p.exists()) {
+        tools.push(DetectedTool {
+            name: "hacktui",
+            config_path: std::env::temp_dir().join("hacktui/query-cache.json"),
         });
     }
 
@@ -441,6 +473,7 @@ fn apply_to_tool(
         "tmux" => apply_to_tmux(tool, mapping),
         "ghostty" => apply_to_ghostty(tool, mapping),
         "opencode" => apply_to_opencode(tool, mapping, pal),
+        "hacktui" => apply_to_hacktui(tool, mapping, pal),
         other => ApplyStatus::Skipped(format!("unknown tool: {other}")),
     };
 
@@ -1370,6 +1403,37 @@ fn apply_to_ghostty(tool: &DetectedTool, mapping: &ToolThemeMapping) -> ApplySta
     }
 
     write_config(&tool.config_path, &lines.join("\n"))
+}
+
+fn apply_to_hacktui(
+    tool: &DetectedTool,
+    mapping: &ToolThemeMapping,
+    _pal: &crate::app::state::Palette,
+) -> ApplyStatus {
+    // Hacktui stores the active theme name in a JSON cache file at
+    // <tmpdir>/hacktui/query-cache.json under the key "hacktui-theme".
+    // The cache dir is created on first run. We write just the theme key.
+    let cache_dir = tool.config_path.parent().unwrap();
+    let _ = std::fs::create_dir_all(cache_dir);
+
+    let mut cache = match read_config_text(&tool.config_path) {
+        Ok(c) => serde_json::from_str::<serde_json::Value>(&c).unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
+        Err(_) => serde_json::Value::Object(serde_json::Map::new()),
+    };
+
+    if let Some(obj) = cache.as_object_mut() {
+        obj.insert(
+            "hacktui-theme".into(),
+            serde_json::Value::String(mapping.hacktui.to_string()),
+        );
+    }
+
+    let updated = match serde_json::to_string_pretty(&cache) {
+        Ok(s) => s,
+        Err(err) => return ApplyStatus::Error(format!("serialization failed: {err}")),
+    };
+
+    write_config(&tool.config_path, &updated)
 }
 
 fn apply_to_opencode(
