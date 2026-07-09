@@ -74,8 +74,7 @@ pub(crate) use self::{
         collapsed_sidebar_toggle_rect, compute_workspace_card_areas, expanded_sidebar_sections,
         expanded_sidebar_toggle_rect, normalized_workspace_scroll, sidebar_section_divider_rect,
         sidebar_traffic_light_rects, workspace_drop_indicator_row, workspace_list_entries,
-        workspace_list_rect, workspace_list_scroll_metrics,
-        workspace_list_scrollbar_rect,
+        workspace_list_rect, workspace_list_scroll_metrics, workspace_list_scrollbar_rect,
         workspace_parent_group_state, WorkspaceListEntry,
     },
 };
@@ -232,7 +231,9 @@ fn compute_view_internal(
         return;
     }
 
-    let sidebar_w = if app.sidebar_collapsed {
+    let sidebar_w = if app.compact_mode || app.sidebar_hidden {
+        0
+    } else if app.sidebar_collapsed {
         COLLAPSED_WIDTH
     } else {
         app.sidebar_width
@@ -242,7 +243,7 @@ fn compute_view_internal(
     let [sidebar_area, main_area] =
         Layout::horizontal([Constraint::Length(sidebar_w), Constraint::Min(1)]).areas(area);
 
-    let has_tabs = app.active.and_then(|i| app.workspaces.get(i)).is_some();
+    let has_tabs = !app.compact_mode && app.active.and_then(|i| app.workspaces.get(i)).is_some();
     let (tab_bar_rect, terminal_area) = if has_tabs && main_area.height > 1 {
         let tab_bar_height = if app.tab_bar_vertical_padding {
             2u16.min(main_area.height.saturating_sub(1))
@@ -253,11 +254,16 @@ fn compute_view_internal(
             Layout::vertical([Constraint::Length(tab_bar_height), Constraint::Min(1)])
                 .areas(main_area);
         (tab_bar_rect, terminal_area)
+    } else if app.compact_mode && main_area.height > 1 {
+        // Reserve a 1-row blank strip at the top so content isn't flush against the edge
+        let [_, terminal_area] =
+            Layout::vertical([Constraint::Length(1), Constraint::Min(1)]).areas(main_area);
+        (Rect::default(), terminal_area)
     } else {
         (Rect::default(), main_area)
     };
 
-    if !app.sidebar_collapsed {
+    if !app.compact_mode && !app.sidebar_collapsed && !app.sidebar_hidden {
         app.workspace_scroll = normalized_workspace_scroll(app, sidebar_area, app.workspace_scroll);
         let (_, detail_area) = expanded_sidebar_sections(sidebar_area, app.sidebar_section_split);
         let max_agent_scroll = agent_panel_scroll_metrics(app, detail_area).max_offset_from_bottom;
@@ -269,7 +275,7 @@ fn compute_view_internal(
         app.agent_panel_scroll = 0;
     }
 
-    let workspace_card_areas = if app.sidebar_collapsed {
+    let workspace_card_areas = if app.compact_mode || app.sidebar_collapsed || app.sidebar_hidden {
         Vec::new()
     } else {
         compute_workspace_card_areas(app, sidebar_area)
@@ -290,11 +296,13 @@ fn compute_view_internal(
                 tab_bar_rect
             };
             compute_tab_bar_view(
+                app,
                 ws,
                 tab_content_area,
                 app.tab_scroll,
                 app.tab_scroll_follow_active,
                 app.mouse_capture,
+                terminal_runtimes,
             )
         })
         .unwrap_or_default();
@@ -489,13 +497,15 @@ pub fn render_with_runtime_registry(
 
     if app.view.layout == ViewLayout::Mobile {
         render_mobile_header(app, terminal_runtimes, frame, app.view.mobile_header_rect);
+    } else if app.compact_mode || app.sidebar_hidden {
+        // sidebar is hidden
     } else if app.sidebar_collapsed {
         render_sidebar_collapsed(app, frame, sidebar_area);
     } else {
         render_sidebar(app, terminal_runtimes, frame, sidebar_area);
     }
-    if app.view.layout != ViewLayout::Mobile {
-        render_tab_bar(app, frame, tab_bar_area);
+    if app.view.layout != ViewLayout::Mobile && !app.compact_mode {
+        render_tab_bar(app, terminal_runtimes, frame, tab_bar_area);
     }
     render_panes(app, terminal_runtimes, frame, pane_area);
 

@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
@@ -21,6 +23,7 @@ pub(super) enum SettingsAction {
     SaveAgentBorderLabels(bool),
     SavePaneHistory(bool),
     SaveSwitchAsciiInputSourceInPrefix(bool),
+    SaveCompactMode(bool),
     InstallRecommendedIntegrations,
 }
 
@@ -45,6 +48,9 @@ fn experiment_toggle_action(state: &AppState, idx: usize) -> Option<SettingsActi
                 !ExperimentSetting::SwitchAsciiInputSourceInPrefix.enabled(state),
             ))
         }
+        ExperimentSetting::CompactMode => Some(SettingsAction::SaveCompactMode(
+            !ExperimentSetting::CompactMode.enabled(state),
+        )),
     }
 }
 
@@ -70,6 +76,12 @@ impl App {
                 }
                 SettingsAction::SaveSwitchAsciiInputSourceInPrefix(enabled) => {
                     self.save_switch_ascii_input_source_in_prefix(enabled)
+                }
+                SettingsAction::SaveCompactMode(enabled) => {
+                    self.state.compact_mode = enabled;
+                    self.state.sidebar_collapsed = false;
+                    self.render_dirty.store(true, Ordering::Release);
+                    self.render_notify.notify_one();
                 }
                 SettingsAction::InstallRecommendedIntegrations => {
                     self.install_recommended_integrations()
@@ -616,6 +628,30 @@ mod tests {
         );
 
         assert_eq!(action, Some(SettingsAction::SavePaneHistory(true)));
+        assert_eq!(state.mode, Mode::Settings);
+    }
+
+    #[test]
+    fn settings_experiments_toggles_compact_mode() {
+        let mut state = state_with_workspaces(&["test"]);
+        state.compact_mode = false;
+        open_settings_at(&mut state, SettingsSection::Experiments);
+
+        // CompactMode is index 2 — navigate down twice
+        update_settings_state(
+            &mut state,
+            KeyEvent::new(KeyCode::Down, KeyModifiers::empty()),
+        );
+        update_settings_state(
+            &mut state,
+            KeyEvent::new(KeyCode::Down, KeyModifiers::empty()),
+        );
+        let action = update_settings_state(
+            &mut state,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+        );
+
+        assert_eq!(action, Some(SettingsAction::SaveCompactMode(true)));
         assert_eq!(state.mode, Mode::Settings);
     }
 

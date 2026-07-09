@@ -20,8 +20,7 @@ use super::{
     modal::{
         apply_context_menu_action, apply_global_menu_action, apply_rename_action,
         confirm_close_accept, confirm_close_cancel, global_menu_actions, leave_modal,
-        modal_action_from_buttons, open_global_menu, open_new_tab_dialog,
-        ModalAction,
+        modal_action_from_buttons, open_global_menu, open_new_tab_dialog, ModalAction,
     },
     settings::SettingsAction,
     ScrollbarClickTarget, TAB_DRAG_THRESHOLD, WORKSPACE_DRAG_THRESHOLD,
@@ -86,6 +85,7 @@ impl AppState {
         }
 
         let launcher_enabled = self.view.layout != ViewLayout::Mobile
+            && !self.compact_mode
             && !self.sidebar_collapsed
             && matches!(
                 self.mode,

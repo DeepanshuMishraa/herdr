@@ -603,6 +603,8 @@ pub(crate) enum NavigateAction {
     Zoom,
     EnterResizeMode,
     ToggleSidebar,
+    ToggleHideSidebar,
+    ToggleCompactMode,
     CyclePaneNext,
     CyclePanePrevious,
     LastPane,
@@ -710,6 +712,8 @@ fn action_for_key(
         (&kb.zoom, NavigateAction::Zoom),
         (&kb.resize_mode, NavigateAction::EnterResizeMode),
         (&kb.toggle_sidebar, NavigateAction::ToggleSidebar),
+        (&kb.toggle_hide_sidebar, NavigateAction::ToggleHideSidebar),
+        (&kb.toggle_compact_mode, NavigateAction::ToggleCompactMode),
         (&kb.reload_config, NavigateAction::ReloadConfig),
         (
             &kb.open_notification_target,
@@ -916,6 +920,16 @@ pub(super) fn execute_navigate_action_in_context(
         NavigateAction::EnterResizeMode => state.mode = Mode::Resize,
         NavigateAction::ToggleSidebar => {
             state.sidebar_collapsed = !state.sidebar_collapsed;
+            state.sidebar_hidden = false; // show if hidden
+            leave_navigate_mode(state);
+        }
+        NavigateAction::ToggleHideSidebar => {
+            state.sidebar_hidden = !state.sidebar_hidden;
+            leave_navigate_mode(state);
+        }
+        NavigateAction::ToggleCompactMode => {
+            state.compact_mode = !state.compact_mode;
+            state.sidebar_collapsed = false; // exit collapsed if active
             leave_navigate_mode(state);
         }
         NavigateAction::CyclePaneNext => {
@@ -1348,6 +1362,96 @@ mod tests {
 
         assert!(state.sidebar_collapsed);
         assert_eq!(state.mode, Mode::Terminal);
+    }
+
+    #[test]
+    fn custom_sidebar_hide_key_toggles_and_exits_navigate() {
+        let mut state = state_with_workspaces(&["test"]);
+        state.keybinds.toggle_hide_sidebar = crate::config::ActionKeybinds::prefix("g");
+        assert!(!state.sidebar_hidden);
+
+        handle_navigate_key(
+            &mut state,
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
+        );
+
+        assert!(state.sidebar_hidden);
+        assert_eq!(state.mode, Mode::Terminal);
+    }
+
+    #[test]
+    fn toggle_compact_mode_toggles_and_exits_navigate() {
+        let mut state = state_with_workspaces(&["test"]);
+        state.keybinds.toggle_compact_mode = crate::config::ActionKeybinds::prefix("shift+u");
+        assert!(!state.compact_mode);
+
+        handle_navigate_key(
+            &mut state,
+            KeyEvent::new(KeyCode::Char('U'), KeyModifiers::SHIFT),
+        );
+
+        assert!(state.compact_mode);
+        assert!(!state.sidebar_collapsed);
+        assert_eq!(state.mode, Mode::Terminal);
+
+        // Toggle off
+        handle_navigate_key(
+            &mut state,
+            KeyEvent::new(KeyCode::Char('U'), KeyModifiers::SHIFT),
+        );
+
+        assert!(!state.compact_mode);
+    }
+
+    #[tokio::test]
+    async fn prefix_compact_mode_toggles_through_full_app() {
+        let (_api_tx, api_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut app = crate::app::App::new(
+            &crate::config::Config::default(),
+            true,
+            None,
+            api_rx,
+            crate::api::EventHub::default(),
+        );
+        app.state.workspaces = vec![crate::workspace::Workspace::test_new("test")];
+        app.state.active = Some(0);
+        app.state.selected = 0;
+        app.state.mode = crate::app::state::Mode::Terminal;
+        app.state.keybinds.toggle_compact_mode = crate::config::ActionKeybinds::prefix("shift+b");
+        assert!(!app.state.compact_mode);
+
+        app.handle_key(crate::input::TerminalKey::new(
+            app.state.prefix_code,
+            app.state.prefix_mods,
+        ))
+        .await;
+        assert_eq!(app.state.mode, crate::app::state::Mode::Prefix);
+
+        app.handle_key(crate::input::TerminalKey::new(
+            KeyCode::Char('B'),
+            KeyModifiers::SHIFT,
+        ))
+        .await;
+
+        assert!(app.state.compact_mode);
+        assert!(!app.state.sidebar_collapsed);
+        assert_eq!(app.state.mode, crate::app::state::Mode::Terminal);
+    }
+
+    #[test]
+    fn compact_mode_hides_sidebar_and_tab_bar_in_view() {
+        let mut state = state_with_workspaces(&["test"]);
+        state.active = Some(0);
+        state.selected = 0;
+        state.mode = Mode::Terminal;
+        state.compact_mode = true;
+
+        crate::ui::compute_view(&mut state, ratatui::layout::Rect::new(0, 0, 100, 20));
+
+        assert_eq!(state.view.sidebar_rect.width, 0);
+        assert_eq!(state.view.tab_bar_rect, ratatui::layout::Rect::default());
+        assert_eq!(state.view.terminal_area.width, 100);
+        assert_eq!(state.view.terminal_area.height, 20);
     }
 
     #[test]

@@ -311,8 +311,16 @@ impl TerminalRuntime {
         self.0.extract_selection(selection)
     }
 
-    pub fn render(&self, frame: &mut Frame, area: Rect, show_cursor: bool, fallback_fg: Option<ratatui::style::Color>, fallback_bg: Option<ratatui::style::Color>) {
-        self.0.render(frame, area, show_cursor, fallback_fg, fallback_bg);
+    pub fn render(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        show_cursor: bool,
+        fallback_fg: Option<ratatui::style::Color>,
+        fallback_bg: Option<ratatui::style::Color>,
+    ) {
+        self.0
+            .render(frame, area, show_cursor, fallback_fg, fallback_bg);
     }
 
     pub(crate) fn collect_dirty_patch(
@@ -322,7 +330,8 @@ impl TerminalRuntime {
         fallback_fg: Option<ratatui::style::Color>,
         fallback_bg: Option<ratatui::style::Color>,
     ) -> crate::pane::TerminalDirtyPatchOutcome {
-        self.0.collect_dirty_patch(area_width, area_height, fallback_fg, fallback_bg)
+        self.0
+            .collect_dirty_patch(area_width, area_height, fallback_fg, fallback_bg)
     }
 
     pub fn visible_hyperlinks(&self, area: Rect) -> Vec<((u16, u16), String, String)> {

@@ -1011,7 +1011,7 @@ impl AppState {
             return;
         }
 
-        if self.sidebar_collapsed {
+        if self.compact_mode || self.sidebar_collapsed {
             return;
         }
 
@@ -1309,7 +1309,7 @@ impl AppState {
     }
 
     fn ensure_agent_panel_entry_visible(&mut self, idx: usize) {
-        if self.sidebar_collapsed {
+        if self.compact_mode || self.sidebar_collapsed {
             return;
         }
 
@@ -1490,12 +1490,15 @@ impl AppState {
             return;
         };
 
+        let runtimes = crate::terminal::TerminalRuntimeRegistry::new();
         let layout = crate::ui::compute_tab_bar_view(
+            self,
             ws,
             area,
             self.tab_scroll,
             self.tab_scroll_follow_active,
             self.mouse_capture,
+            &runtimes,
         );
         self.tab_scroll = layout.scroll;
         self.view.tab_hit_areas = layout.tab_hit_areas;

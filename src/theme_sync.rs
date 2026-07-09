@@ -32,7 +32,7 @@ fn resolve_tool_mapping(herdr_name: &str) -> Option<&'static ToolThemeMapping> {
             tmux_flavour: Some("macchiato"),
             ghostty_bg: "#24273a",
             opencode: "catppuccin-macchiato",
-hacktui: "catppuccin-macchiato",
+            hacktui: "catppuccin-macchiato",
         },
         "catppuccin-mocha" => &ToolThemeMapping {
             pi_agent: "catppuccin-macchiato",
@@ -40,7 +40,7 @@ hacktui: "catppuccin-macchiato",
             tmux_flavour: Some("macchiato"),
             ghostty_bg: "#1e1e2e",
             opencode: "catppuccin-macchiato",
-hacktui: "catppuccin-macchiato",
+            hacktui: "catppuccin-macchiato",
         },
         "catppuccin-latte" | "latte" | "light" => &ToolThemeMapping {
             pi_agent: "catppuccin-latte",
@@ -48,7 +48,7 @@ hacktui: "catppuccin-macchiato",
             tmux_flavour: Some("latte"),
             ghostty_bg: "#eff1f5",
             opencode: "catppuccin-latte",
-hacktui: "catppuccin-frappe",
+            hacktui: "catppuccin-frappe",
         },
         "tokyo-night" | "tokyonight" => &ToolThemeMapping {
             pi_agent: "tokyo-night",
@@ -56,7 +56,7 @@ hacktui: "catppuccin-frappe",
             tmux_flavour: None,
             ghostty_bg: "#1a1b26",
             opencode: "tokyo-night",
-hacktui: "tokyo-night",
+            hacktui: "tokyo-night",
         },
         "tokyo-night-day" | "tokyo-day" | "tokyonight-day" => &ToolThemeMapping {
             pi_agent: "tokyo-night",
@@ -64,7 +64,7 @@ hacktui: "tokyo-night",
             tmux_flavour: None,
             ghostty_bg: "#e1e2e7",
             opencode: "tokyo-night-day",
-hacktui: "tokyo-night",
+            hacktui: "tokyo-night",
         },
         "dracula" => &ToolThemeMapping {
             pi_agent: "dracula",
@@ -72,7 +72,7 @@ hacktui: "tokyo-night",
             tmux_flavour: None,
             ghostty_bg: "#282a36",
             opencode: "dracula",
-hacktui: "dracula",
+            hacktui: "dracula",
         },
         "nord" => &ToolThemeMapping {
             pi_agent: "nord",
@@ -80,7 +80,7 @@ hacktui: "dracula",
             tmux_flavour: None,
             ghostty_bg: "#2e3440",
             opencode: "nord",
-hacktui: "nord",
+            hacktui: "nord",
         },
         "gruvbox" | "gruvbox-dark" => &ToolThemeMapping {
             pi_agent: "gruvbox",
@@ -88,7 +88,7 @@ hacktui: "nord",
             tmux_flavour: None,
             ghostty_bg: "#282828",
             opencode: "gruvbox",
-hacktui: "gruvbox",
+            hacktui: "gruvbox",
         },
         "gruvbox-light" => &ToolThemeMapping {
             pi_agent: "gruvbox-light",
@@ -96,7 +96,7 @@ hacktui: "gruvbox",
             tmux_flavour: None,
             ghostty_bg: "#fbf1c7",
             opencode: "gruvbox-light",
-hacktui: "flexoki",
+            hacktui: "flexoki",
         },
         "one-dark" | "onedark" => &ToolThemeMapping {
             pi_agent: "one-dark",
@@ -104,7 +104,7 @@ hacktui: "flexoki",
             tmux_flavour: None,
             ghostty_bg: "#282c34",
             opencode: "one-dark",
-hacktui: "one-dark",
+            hacktui: "one-dark",
         },
         "one-light" | "onelight" => &ToolThemeMapping {
             pi_agent: "one-light",
@@ -112,7 +112,7 @@ hacktui: "one-dark",
             tmux_flavour: None,
             ghostty_bg: "#fafafa",
             opencode: "one-light",
-hacktui: "github",
+            hacktui: "github",
         },
         "solarized" | "solarized-dark" => &ToolThemeMapping {
             pi_agent: "solarized",
@@ -120,7 +120,7 @@ hacktui: "github",
             tmux_flavour: None,
             ghostty_bg: "#002b36",
             opencode: "solarized",
-hacktui: "solarized",
+            hacktui: "solarized",
         },
         "solarized-light" => &ToolThemeMapping {
             pi_agent: "solarized-light",
@@ -128,7 +128,7 @@ hacktui: "solarized",
             tmux_flavour: None,
             ghostty_bg: "#fdf6e3",
             opencode: "solarized-light",
-hacktui: "github",
+            hacktui: "github",
         },
         "kanagawa" => &ToolThemeMapping {
             pi_agent: "kanagawa",
@@ -136,7 +136,7 @@ hacktui: "github",
             tmux_flavour: None,
             ghostty_bg: "#1f1f28",
             opencode: "kanagawa",
-hacktui: "kanagawa",
+            hacktui: "kanagawa",
         },
         "kanagawa-lotus" | "lotus" => &ToolThemeMapping {
             pi_agent: "kanagawa-lotus",
@@ -144,7 +144,7 @@ hacktui: "kanagawa",
             tmux_flavour: None,
             ghostty_bg: "#f4edd9",
             opencode: "kanagawa-lotus",
-hacktui: "kanagawa",
+            hacktui: "kanagawa",
         },
         "rose-pine" | "rosepine" => &ToolThemeMapping {
             pi_agent: "rose-pine",
@@ -152,7 +152,7 @@ hacktui: "kanagawa",
             tmux_flavour: None,
             ghostty_bg: "#191724",
             opencode: "rose-pine",
-hacktui: "rose-pine",
+            hacktui: "rose-pine",
         },
         "rose-pine-dawn" | "rosepine-dawn" | "dawn" => &ToolThemeMapping {
             pi_agent: "rose-pine",
@@ -160,7 +160,7 @@ hacktui: "rose-pine",
             tmux_flavour: None,
             ghostty_bg: "#faf4ed",
             opencode: "rose-pine-dawn",
-hacktui: "rose-pine",
+            hacktui: "rose-pine",
         },
         "vesper" => &ToolThemeMapping {
             pi_agent: "vesper",
@@ -168,7 +168,7 @@ hacktui: "rose-pine",
             tmux_flavour: None,
             ghostty_bg: "#101010",
             opencode: "vesper",
-hacktui: "vesper",
+            hacktui: "vesper",
         },
         _ => return None,
     };
@@ -743,7 +743,11 @@ fn apply_to_neovim(
     // ~/.config/nvim/lua/herdr-sync.lua that neovim can `require()`.
     // The parent of the plugin dir is the lua dir: lua/plugins/.. = lua/
     // This avoids placing code after `return { ... }` in the main config.
-    let nvim_lua_dir = tool.config_path.parent().and_then(|p| p.parent()).unwrap_or(tool.config_path.parent().unwrap());
+    let nvim_lua_dir = tool
+        .config_path
+        .parent()
+        .and_then(|p| p.parent())
+        .unwrap_or(tool.config_path.parent().unwrap());
     generate_neovim_herdr_sync_file(nvim_lua_dir, pal, mapping);
 
     // Step 2: Replace vim.cmd.colorscheme("...") or require("herdr-sync") with
@@ -790,7 +794,11 @@ fn apply_to_neovim(
     write_config(&tool.config_path, &lines.join("\n"))
 }
 
-fn generate_neovim_herdr_sync_file(config_dir: &Path, pal: &crate::app::state::Palette, _mapping: &ToolThemeMapping) {
+fn generate_neovim_herdr_sync_file(
+    config_dir: &Path,
+    pal: &crate::app::state::Palette,
+    _mapping: &ToolThemeMapping,
+) {
     let file_path = config_dir.join("herdr-sync.lua");
     if let Some(parent) = file_path.parent() {
         let _ = std::fs::create_dir_all(parent);
@@ -936,7 +944,11 @@ h(0, "LspReferenceWrite", {{ bg = "{surface1}" }})
     let _ = std::fs::write(&file_path, lua);
 }
 
-fn apply_to_zed(tool: &DetectedTool, mapping: &ToolThemeMapping, pal: &crate::app::state::Palette) -> ApplyStatus {
+fn apply_to_zed(
+    tool: &DetectedTool,
+    mapping: &ToolThemeMapping,
+    pal: &crate::app::state::Palette,
+) -> ApplyStatus {
     let content = match read_config_text(&tool.config_path) {
         Ok(c) => c,
         Err(e) => return ApplyStatus::Error(e),
@@ -1007,10 +1019,17 @@ fn generate_zed_theme_file(themes_dir: &Path, name: &str, pal: &crate::app::stat
 
     let mut style: BTreeMap<String, serde_json::Value> = BTreeMap::new();
     macro_rules! kv {
-        ($k:expr, $v:expr) => { style.insert($k.into(), serde_json::Value::String(::std::clone::Clone::clone(&$v))); };
+        ($k:expr, $v:expr) => {
+            style.insert(
+                $k.into(),
+                serde_json::Value::String(::std::clone::Clone::clone(&$v)),
+            );
+        };
     }
     macro_rules! kvn {
-        ($k:expr) => { style.insert($k.into(), serde_json::Value::Null); };
+        ($k:expr) => {
+            style.insert($k.into(), serde_json::Value::Null);
+        };
     }
     kv!("background", bg);
     kv!("foreground", fg);
@@ -1144,11 +1163,17 @@ fn generate_zed_theme_file(themes_dir: &Path, name: &str, pal: &crate::app::stat
     kv!("terminal.ansi.white", fg);
     kv!("terminal.ansi.bright_white", fg);
     kv!("terminal.ansi.dim_white", sub);
-    style.insert("accents".into(), serde_json::Value::Array(vec![serde_json::Value::String(acc)]));
+    style.insert(
+        "accents".into(),
+        serde_json::Value::Array(vec![serde_json::Value::String(acc)]),
+    );
 
     // Syntax
     let mut syntax = serde_json::Map::new();
-    syntax.insert("comment".into(), serde_json::json!({ "color": over0.clone(), "font_style": "italic" }));
+    syntax.insert(
+        "comment".into(),
+        serde_json::json!({ "color": over0.clone(), "font_style": "italic" }),
+    );
     let sc = |c: String| serde_json::json!({ "color": c });
     syntax.insert("constant".into(), sc(peach.clone()));
     syntax.insert("string".into(), sc(green.clone()));
@@ -1156,13 +1181,19 @@ fn generate_zed_theme_file(themes_dir: &Path, name: &str, pal: &crate::app::stat
     syntax.insert("number".into(), sc(peach.clone()));
     syntax.insert("boolean".into(), sc(peach.clone()));
     syntax.insert("float".into(), sc(peach.clone()));
-    syntax.insert("builtin".into(), serde_json::json!({ "color": red.clone() }));
+    syntax.insert(
+        "builtin".into(),
+        serde_json::json!({ "color": red.clone() }),
+    );
     syntax.insert("function".into(), sc(blue.clone()));
     syntax.insert("method".into(), sc(blue.clone()));
     syntax.insert("constructor".into(), sc(blue.clone()));
     syntax.insert("variable".into(), sc(fg.clone()));
     syntax.insert("type".into(), sc(teal.clone()));
-    syntax.insert("keyword".into(), serde_json::json!({ "color": mauve.clone(), "font_style": "italic" }));
+    syntax.insert(
+        "keyword".into(),
+        serde_json::json!({ "color": mauve.clone(), "font_style": "italic" }),
+    );
     syntax.insert("label".into(), sc(mauve.clone()));
     syntax.insert("namespace".into(), sc(teal.clone()));
     syntax.insert("tag".into(), serde_json::json!({ "color": red.clone() }));
@@ -1179,7 +1210,10 @@ fn generate_zed_theme_file(themes_dir: &Path, name: &str, pal: &crate::app::stat
     syntax.insert("string.regex".into(), sc(peach.clone()));
     syntax.insert("string.escape".into(), sc(mauve.clone()));
     syntax.insert("embedded".into(), sc(fg.clone()));
-    syntax.insert("comment.doc".into(), serde_json::json!({ "color": over0, "font_style": "italic" }));
+    syntax.insert(
+        "comment.doc".into(),
+        serde_json::json!({ "color": over0, "font_style": "italic" }),
+    );
 
     style.insert("syntax".into(), serde_json::Value::Object(syntax));
 
@@ -1257,7 +1291,11 @@ fn find_last_json_object(text: &str) -> Option<&str> {
 
 /// Fallback: extract only the last complete JSON document, parse it with
 /// trailing-comma support, update the theme, and write back a single clean file.
-fn apply_to_zed_line_based(tool: &DetectedTool, mapping: &ToolThemeMapping, content: &str) -> ApplyStatus {
+fn apply_to_zed_line_based(
+    tool: &DetectedTool,
+    mapping: &ToolThemeMapping,
+    content: &str,
+) -> ApplyStatus {
     // Strip JSONC line comments, remove trailing commas, then parse as strict JSON.
     // This handles Zed's JSONC format (comments + trailing commas).
     let cleaned = strip_jsonc_comments(content);
@@ -1322,7 +1360,9 @@ fn fix_trailing_commas(s: &str) -> String {
         if bytes[i] == b',' {
             // Look ahead past whitespace for `}` or `]`
             let mut j = i + 1;
-            while j < bytes.len() && (bytes[j] == b' ' || bytes[j] == b'\t' || bytes[j] == b'\n' || bytes[j] == b'\r') {
+            while j < bytes.len()
+                && (bytes[j] == b' ' || bytes[j] == b'\t' || bytes[j] == b'\n' || bytes[j] == b'\r')
+            {
                 j += 1;
             }
             if j < bytes.len() && (bytes[j] == b'}' || bytes[j] == b']') {
@@ -1417,7 +1457,8 @@ fn apply_to_hacktui(
     let _ = std::fs::create_dir_all(cache_dir);
 
     let mut cache = match read_config_text(&tool.config_path) {
-        Ok(c) => serde_json::from_str::<serde_json::Value>(&c).unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
+        Ok(c) => serde_json::from_str::<serde_json::Value>(&c)
+            .unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
         Err(_) => serde_json::Value::Object(serde_json::Map::new()),
     };
 

@@ -335,9 +335,15 @@ pub(super) fn render_panes(
                 && app.pane_exposes_host_cursor(ws_idx, info.id);
             let fallback_bg = (app.palette.panel_bg != ratatui::style::Color::Reset)
                 .then_some(app.palette.panel_bg);
-            let fallback_fg = (app.palette.text != ratatui::style::Color::Reset)
-                .then_some(app.palette.text);
-            rt.render(frame, info.inner_rect, show_cursor, fallback_fg, fallback_bg);
+            let fallback_fg =
+                (app.palette.text != ratatui::style::Color::Reset).then_some(app.palette.text);
+            rt.render(
+                frame,
+                info.inner_rect,
+                show_cursor,
+                fallback_fg,
+                fallback_bg,
+            );
             render_pane_scrollbar(app, frame, info, rt);
 
             let should_dim = !info.is_focused && multi_pane && !terminal_active;

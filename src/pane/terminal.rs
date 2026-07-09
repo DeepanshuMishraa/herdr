@@ -234,8 +234,16 @@ impl PaneTerminal {
         self.ghostty.extract_selection(selection)
     }
 
-    pub fn render(&self, frame: &mut Frame, area: Rect, show_cursor: bool, fallback_fg: Option<Color>, fallback_bg: Option<Color>) {
-        self.ghostty.render(frame, area, show_cursor, fallback_fg, fallback_bg);
+    pub fn render(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        show_cursor: bool,
+        fallback_fg: Option<Color>,
+        fallback_bg: Option<Color>,
+    ) {
+        self.ghostty
+            .render(frame, area, show_cursor, fallback_fg, fallback_bg);
     }
 
     pub fn collect_dirty_patch(
@@ -245,7 +253,8 @@ impl PaneTerminal {
         fallback_fg: Option<Color>,
         fallback_bg: Option<Color>,
     ) -> TerminalDirtyPatchOutcome {
-        self.ghostty.collect_dirty_patch(area_width, area_height, fallback_fg, fallback_bg)
+        self.ghostty
+            .collect_dirty_patch(area_width, area_height, fallback_fg, fallback_bg)
     }
 
     pub fn visible_hyperlinks(&self, area: Rect) -> Vec<((u16, u16), String, String)> {
@@ -1172,7 +1181,14 @@ impl GhosttyPaneTerminal {
             .unwrap_or_default()
     }
 
-    pub fn render(&self, frame: &mut Frame, area: Rect, show_cursor: bool, fallback_fg: Option<Color>, fallback_bg: Option<Color>) {
+    pub fn render(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        show_cursor: bool,
+        fallback_fg: Option<Color>,
+        fallback_bg: Option<Color>,
+    ) {
         let Ok(mut core) = self.core.lock() else {
             return;
         };
@@ -1292,7 +1308,15 @@ impl GhosttyPaneTerminal {
         self.core
             .lock()
             .ok()
-            .map(|mut core| ghostty_collect_dirty_patch(&mut core, area_width, area_height, fallback_fg, fallback_bg))
+            .map(|mut core| {
+                ghostty_collect_dirty_patch(
+                    &mut core,
+                    area_width,
+                    area_height,
+                    fallback_fg,
+                    fallback_bg,
+                )
+            })
             .unwrap_or(TerminalDirtyPatchOutcome::Fallback)
     }
 }
@@ -1865,13 +1889,18 @@ fn ghostty_cell_style(
         .fg_color
         .map(ghostty_cell_color)
         .or_else(|| {
-            cells.fg_color().ok().flatten().map(ghostty_color).and_then(|fg| {
-                if Some(fg) == resolved_fg {
-                    None
-                } else {
-                    Some(fg)
-                }
-            })
+            cells
+                .fg_color()
+                .ok()
+                .flatten()
+                .map(ghostty_color)
+                .and_then(|fg| {
+                    if Some(fg) == resolved_fg {
+                        None
+                    } else {
+                        Some(fg)
+                    }
+                })
         })
         .or(default_fg);
     let mut bg = cells
@@ -1881,13 +1910,18 @@ fn ghostty_cell_style(
         .or(basic.style.bg_color)
         .map(ghostty_cell_color)
         .or_else(|| {
-            cells.bg_color().ok().flatten().map(ghostty_color).and_then(|bg| {
-                if Some(bg) == resolved_bg {
-                    None
-                } else {
-                    Some(bg)
-                }
-            })
+            cells
+                .bg_color()
+                .ok()
+                .flatten()
+                .map(ghostty_color)
+                .and_then(|bg| {
+                    if Some(bg) == resolved_bg {
+                        None
+                    } else {
+                        Some(bg)
+                    }
+                })
         })
         .or(default_bg);
     if basic.style.invisible {

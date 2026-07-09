@@ -7,7 +7,8 @@ use super::ScrollbarClickTarget;
 impl AppState {
     pub(super) fn workspace_list_rect(&self) -> Rect {
         let sidebar = self.view.sidebar_rect;
-        if self.sidebar_collapsed || sidebar.width <= 1 || sidebar.height == 0 {
+        if self.compact_mode || self.sidebar_collapsed || sidebar.width <= 1 || sidebar.height == 0
+        {
             return Rect::default();
         }
         crate::ui::workspace_list_rect(sidebar, self.sidebar_section_split)
@@ -15,7 +16,8 @@ impl AppState {
 
     pub(super) fn agent_panel_rect(&self) -> Rect {
         let sidebar = self.view.sidebar_rect;
-        if self.sidebar_collapsed || sidebar.width <= 1 || sidebar.height == 0 {
+        if self.compact_mode || self.sidebar_collapsed || sidebar.width <= 1 || sidebar.height == 0
+        {
             return Rect::default();
         }
         let (_, detail_area) =
@@ -241,7 +243,7 @@ impl AppState {
     }
 
     pub(super) fn on_sidebar_divider(&self, col: u16, row: u16) -> bool {
-        if self.sidebar_collapsed {
+        if self.compact_mode || self.sidebar_collapsed {
             return false;
         }
         let sidebar = self.view.sidebar_rect;
@@ -553,11 +555,7 @@ mod tests {
         app.state.detach_exits = false;
         let (red, _, _) = crate::ui::sidebar_traffic_light_rects(app.state.view.sidebar_rect);
 
-        app.handle_mouse(mouse(
-            MouseEventKind::Down(MouseButton::Left),
-            red.x,
-            red.y,
-        ));
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), red.x, red.y));
 
         assert!(!app.state.detach_requested);
         assert!(!app.state.should_quit);

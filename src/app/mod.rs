@@ -599,6 +599,8 @@ impl App {
             sidebar_width_source,
             sidebar_width_auto: false,
             sidebar_collapsed: false,
+            sidebar_hidden: false,
+            compact_mode: false,
             sidebar_section_split,
             agent_panel_sort,
             next_agent_state_change_seq: 0,

@@ -1,5 +1,7 @@
 //! Input handling — translates crossterm key/mouse events into state mutations.
 
+use std::sync::atomic::Ordering;
+
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
 use crate::app::PaneClickState;
@@ -280,6 +282,12 @@ impl App {
                     }
                     SettingsAction::SaveSwitchAsciiInputSourceInPrefix(enabled) => {
                         self.save_switch_ascii_input_source_in_prefix(enabled)
+                    }
+                    SettingsAction::SaveCompactMode(enabled) => {
+                        self.state.compact_mode = enabled;
+                        self.state.sidebar_collapsed = false;
+                        self.render_dirty.store(true, Ordering::Release);
+                        self.render_notify.notify_one();
                     }
                     SettingsAction::InstallRecommendedIntegrations => {
                         self.install_recommended_integrations()

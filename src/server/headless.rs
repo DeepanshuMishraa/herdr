@@ -2922,7 +2922,12 @@ impl HeadlessServer {
                 .then_some(self.app.state.palette.panel_bg);
             let fallback_fg = (self.app.state.palette.text != ratatui::style::Color::Reset)
                 .then_some(self.app.state.palette.text);
-            match runtime.collect_dirty_patch(info.inner_rect.width, info.inner_rect.height, fallback_fg, fallback_bg) {
+            match runtime.collect_dirty_patch(
+                info.inner_rect.width,
+                info.inner_rect.height,
+                fallback_fg,
+                fallback_bg,
+            ) {
                 crate::pane::TerminalDirtyPatchOutcome::Clean => {
                     crate::render_prof::event("retained.pane_clean");
                 }

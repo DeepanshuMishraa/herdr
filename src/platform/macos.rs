@@ -1250,11 +1250,8 @@ extern "C" {
         attribute: CFTypeRef,
         value: *mut CFTypeRef,
     ) -> i32;
-    fn AXValueGetValue(
-        value: CFTypeRef,
-        the_type: AXValueType,
-        value_ptr: *mut libc::c_void,
-    ) -> u8;
+    fn AXValueGetValue(value: CFTypeRef, the_type: AXValueType, value_ptr: *mut libc::c_void)
+        -> u8;
 }
 
 fn cf_string_create(s: &str) -> Option<CFTypeRef> {
@@ -1370,7 +1367,11 @@ fn get_window_position(window: CFTypeRef) -> Option<CGPoint> {
 
     let mut pt = CGPoint { x: 0.0, y: 0.0 };
     let ok = unsafe {
-        AXValueGetValue(value, AX_VALUE_CGPOINT_TYPE, &mut pt as *mut CGPoint as *mut libc::c_void)
+        AXValueGetValue(
+            value,
+            AX_VALUE_CGPOINT_TYPE,
+            &mut pt as *mut CGPoint as *mut libc::c_void,
+        )
     };
     release_cf(value);
     (ok != 0).then_some(pt)
@@ -1400,7 +1401,10 @@ fn ax_set_window_position(window: CFTypeRef, position: CGPoint) {
         fn AXValueCreate(the_type: AXValueType, value_ptr: *const libc::c_void) -> CFTypeRef;
     }
     let value = unsafe {
-        AXValueCreate(AX_VALUE_CGPOINT_TYPE, &position as *const CGPoint as *const libc::c_void)
+        AXValueCreate(
+            AX_VALUE_CGPOINT_TYPE,
+            &position as *const CGPoint as *const libc::c_void,
+        )
     };
     if value.is_null() {
         release_cf(attr);
