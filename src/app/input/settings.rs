@@ -24,6 +24,7 @@ pub(super) enum SettingsAction {
     SavePaneHistory(bool),
     SaveSwitchAsciiInputSourceInPrefix(bool),
     SaveCompactMode(bool),
+    SaveTabTopMargin(i16),
     InstallRecommendedIntegrations,
 }
 
@@ -51,6 +52,10 @@ fn experiment_toggle_action(state: &AppState, idx: usize) -> Option<SettingsActi
         ExperimentSetting::CompactMode => Some(SettingsAction::SaveCompactMode(
             !ExperimentSetting::CompactMode.enabled(state),
         )),
+        ExperimentSetting::TabTopMargin => {
+            let next_val = if state.tab_top_margin > 0 { 0 } else { 1 };
+            Some(SettingsAction::SaveTabTopMargin(next_val))
+        }
     }
 }
 
@@ -80,6 +85,11 @@ impl App {
                 SettingsAction::SaveCompactMode(enabled) => {
                     self.state.compact_mode = enabled;
                     self.state.sidebar_collapsed = false;
+                    self.render_dirty.store(true, Ordering::Release);
+                    self.render_notify.notify_one();
+                }
+                SettingsAction::SaveTabTopMargin(val) => {
+                    self.state.tab_top_margin = val;
                     self.render_dirty.store(true, Ordering::Release);
                     self.render_notify.notify_one();
                 }
@@ -307,13 +317,37 @@ pub(super) fn update_settings_state(state: &mut AppState, key: KeyEvent) -> Opti
                 return experiment_toggle_action(state, state.settings.list.selected);
             }
             KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h') => {
+                if key.code != KeyCode::BackTab && state.settings.list.selected == 3 {
+                    return Some(SettingsAction::SaveTabTopMargin(
+                        state.tab_top_margin.saturating_sub(1),
+                    ));
+                }
                 state.settings.section = SettingsSection::Integrations;
                 state.settings.list.selected = 0;
             }
             KeyCode::Tab | KeyCode::Right | KeyCode::Char('l') => {
+                if key.code != KeyCode::Tab && state.settings.list.selected == 3 {
+                    return Some(SettingsAction::SaveTabTopMargin(
+                        state.tab_top_margin.saturating_add(1),
+                    ));
+                }
                 state.settings.section = SettingsSection::Theme;
                 state.settings.list.selected =
                     current_theme_index(&state.settings.theme_names, &state.theme_name);
+            }
+            KeyCode::Char('-') => {
+                if state.settings.list.selected == 3 {
+                    return Some(SettingsAction::SaveTabTopMargin(
+                        state.tab_top_margin.saturating_sub(1),
+                    ));
+                }
+            }
+            KeyCode::Char('+') | KeyCode::Char('=') => {
+                if state.settings.list.selected == 3 {
+                    return Some(SettingsAction::SaveTabTopMargin(
+                        state.tab_top_margin.saturating_add(1),
+                    ));
+                }
             }
             _ => {
                 if let Some(super::modal::ModalAction::Close) =
@@ -503,7 +537,25 @@ impl AppState {
                             Some(SettingsAction::SaveToastDelivery(delivery))
                         }
                         SettingsSection::Panes => pane_toggle_action(self, idx),
-                        SettingsSection::Experiments => experiment_toggle_action(self, idx),
+                        SettingsSection::Experiments => {
+                            if idx == 3 {
+                                let list_area_x = self.settings_content_rect().x;
+                                let rel_col = mouse.column.saturating_sub(list_area_x);
+                                if rel_col >= 35 && rel_col <= 37 {
+                                    Some(SettingsAction::SaveTabTopMargin(
+                                        self.tab_top_margin.saturating_sub(1),
+                                    ))
+                                } else if rel_col >= 41 && rel_col <= 43 {
+                                    Some(SettingsAction::SaveTabTopMargin(
+                                        self.tab_top_margin.saturating_add(1),
+                                    ))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                experiment_toggle_action(self, idx)
+                            }
+                        }
                         SettingsSection::Integrations => None,
                     };
                 }
@@ -653,6 +705,35 @@ mod tests {
 
         assert_eq!(action, Some(SettingsAction::SaveCompactMode(true)));
         assert_eq!(state.mode, Mode::Settings);
+    }
+
+    #[test]
+    fn settings_experiments_adjusts_tab_top_margin() {
+        let mut state = state_with_workspaces(&["test"]);
+        state.tab_top_margin = 2;
+        open_settings_at(&mut state, SettingsSection::Experiments);
+
+        // TabTopMargin is index 3 — navigate down 3 times
+        for _ in 0..3 {
+            update_settings_state(
+                &mut state,
+                KeyEvent::new(KeyCode::Down, KeyModifiers::empty()),
+            );
+        }
+
+        // Press '+' to increment
+        let action_inc = update_settings_state(
+            &mut state,
+            KeyEvent::new(KeyCode::Char('+'), KeyModifiers::empty()),
+        );
+        assert_eq!(action_inc, Some(SettingsAction::SaveTabTopMargin(3)));
+
+        // Press '-' to decrement
+        let action_dec = update_settings_state(
+            &mut state,
+            KeyEvent::new(KeyCode::Char('-'), KeyModifiers::empty()),
+        );
+        assert_eq!(action_dec, Some(SettingsAction::SaveTabTopMargin(1)));
     }
 
     #[test]

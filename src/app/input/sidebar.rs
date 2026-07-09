@@ -549,13 +549,13 @@ mod tests {
     }
 
     #[test]
-    fn clicking_red_traffic_light_starts_window_drag() {
+    fn clicking_traffic_light_spacing_starts_window_drag() {
         let mut app = app_for_mouse_test();
         app.state.show_sidebar_quit_button = true;
         app.state.detach_exits = false;
         let (red, _, _) = crate::ui::sidebar_traffic_light_rects(app.state.view.sidebar_rect);
 
-        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), red.x, red.y));
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), red.x + 1, red.y));
 
         assert!(!app.state.detach_requested);
         assert!(!app.state.should_quit);

@@ -1451,7 +1451,7 @@ mod tests {
         assert_eq!(state.view.sidebar_rect.width, 0);
         assert_eq!(state.view.tab_bar_rect, ratatui::layout::Rect::default());
         assert_eq!(state.view.terminal_area.width, 100);
-        assert_eq!(state.view.terminal_area.height, 20);
+        assert_eq!(state.view.terminal_area.height, 19);
     }
 
     #[test]

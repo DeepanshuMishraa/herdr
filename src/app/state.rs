@@ -582,8 +582,8 @@ impl Palette {
     /// Resolve a theme by name. Returns None for unknown names.
     pub fn from_name(name: &str) -> Option<Self> {
         match name.to_lowercase().replace([' ', '_'], "-").as_str() {
-            "catppuccin" => Some(Self::catppuccin()),
-            "catppuccin-mocha" | "catppuccin-macchiato" | "macchiato" => {
+            "catppuccin" | "catppuccin-mocha" | "mocha" => Some(Self::catppuccin()),
+            "catppuccin-macchiato" | "macchiato" => {
                 Some(Self::catppuccin_macchiato())
             }
             "catppuccin-latte" | "latte" | "light" => Some(Self::catppuccin_latte()),
@@ -1011,13 +1011,15 @@ pub(crate) enum ExperimentSetting {
     PaneHistory,
     SwitchAsciiInputSourceInPrefix,
     CompactMode,
+    TabTopMargin,
 }
 
 impl ExperimentSetting {
-    pub(crate) const ALL: [Self; 3] = [
+    pub(crate) const ALL: [Self; 4] = [
         Self::PaneHistory,
         Self::SwitchAsciiInputSourceInPrefix,
         Self::CompactMode,
+        Self::TabTopMargin,
     ];
 
     pub(crate) fn label(self) -> &'static str {
@@ -1027,6 +1029,7 @@ impl ExperimentSetting {
                 "switch to ascii input source in prefix (macOS)"
             }
             Self::CompactMode => "compact mode",
+            Self::TabTopMargin => "tab top margin",
         }
     }
 
@@ -1037,6 +1040,7 @@ impl ExperimentSetting {
                 state.switch_ascii_input_source_in_prefix_enabled()
             }
             Self::CompactMode => state.compact_mode,
+            Self::TabTopMargin => state.tab_top_margin != 0,
         }
     }
 }
@@ -1044,6 +1048,8 @@ impl ExperimentSetting {
 /// All built-in theme names in display order.
 pub const THEME_NAMES: &[&str] = &[
     "catppuccin",
+    "catppuccin-mocha",
+    "catppuccin-macchiato",
     "catppuccin-latte",
     "terminal",
     "tokyo-night",
@@ -1519,6 +1525,7 @@ pub struct AppState {
     pub dim_auto_named_tabs: bool,
     pub tab_bar_left_padding: bool,
     pub tab_bar_vertical_padding: bool,
+    pub tab_top_margin: i16,
     pub show_pane_scrollbars: bool,
     pub show_sidebar_quit_button: bool,
     pub show_sidebar_section_labels: bool,
@@ -1886,6 +1893,7 @@ impl AppState {
             dim_auto_named_tabs: true,
             tab_bar_left_padding: false,
             tab_bar_vertical_padding: true,
+            tab_top_margin: 0,
             show_pane_scrollbars: true,
             show_sidebar_quit_button: true,
             show_sidebar_section_labels: false,

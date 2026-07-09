@@ -129,6 +129,14 @@ impl App {
         }
     }
 
+    pub(super) fn save_tab_top_margin(&mut self, val: i16) {
+        if self.update_config_file("tab top margin", |content| {
+            crate::config::upsert_section_value(content, "ui", "tab_top_margin", &val.to_string())
+        }) {
+            self.apply_config_from_disk(false);
+        }
+    }
+
     pub(super) fn save_agent_panel_sort(&mut self, sort: crate::app::state::AgentPanelSort) {
         let value = match sort {
             crate::app::state::AgentPanelSort::Spaces => {

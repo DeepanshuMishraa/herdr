@@ -480,6 +480,8 @@ pub struct UiConfig {
     pub tab_bar_left_padding: bool,
     /// Reserve one blank row above and below the tab bar content. Default: true.
     pub tab_bar_vertical_padding: bool,
+    /// Top margin for the tab bar. Default: 0.
+    pub tab_top_margin: i16,
     /// Reserve and render a scrollbar column inside panes. Default: true.
     pub show_pane_scrollbars: bool,
     /// Show the traffic-light quit button in the expanded desktop sidebar. Default: true.
@@ -693,6 +695,7 @@ impl Default for UiConfig {
             dim_auto_named_tabs: true,
             tab_bar_left_padding: false,
             tab_bar_vertical_padding: true,
+            tab_top_margin: 0,
             show_pane_scrollbars: true,
             show_sidebar_quit_button: true,
             show_sidebar_section_labels: false,

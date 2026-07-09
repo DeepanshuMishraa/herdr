@@ -614,6 +614,7 @@ impl App {
             dim_auto_named_tabs: config.ui.dim_auto_named_tabs,
             tab_bar_left_padding: config.ui.tab_bar_left_padding,
             tab_bar_vertical_padding: config.ui.tab_bar_vertical_padding,
+            tab_top_margin: config.ui.tab_top_margin,
             show_pane_scrollbars: config.ui.show_pane_scrollbars,
             show_sidebar_quit_button: config.ui.show_sidebar_quit_button,
             show_sidebar_section_labels: config.ui.show_sidebar_section_labels,
@@ -1362,6 +1363,7 @@ impl App {
                 self.state.dim_auto_named_tabs = config.ui.dim_auto_named_tabs;
                 self.state.tab_bar_left_padding = config.ui.tab_bar_left_padding;
                 self.state.tab_bar_vertical_padding = config.ui.tab_bar_vertical_padding;
+                self.state.tab_top_margin = config.ui.tab_top_margin;
                 self.state.show_pane_scrollbars = config.ui.show_pane_scrollbars;
                 self.state.show_sidebar_quit_button = config.ui.show_sidebar_quit_button;
                 self.state.show_sidebar_section_labels = config.ui.show_sidebar_section_labels;

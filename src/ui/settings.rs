@@ -456,7 +456,6 @@ fn render_settings_experiments(app: &AppState, frame: &mut Frame, area: Rect) {
     );
 
     for (idx, setting) in ExperimentSetting::ALL.iter().copied().enumerate() {
-        let marker = if setting.enabled(app) { "[✓]" } else { "[ ]" };
         let style = if app.settings.list.selected == idx {
             Style::default()
                 .bg(p.surface0)
@@ -466,10 +465,24 @@ fn render_settings_experiments(app: &AppState, frame: &mut Frame, area: Rect) {
             Style::default().fg(p.subtext0)
         };
         let row = Rect::new(list_area.x, list_area.y + idx as u16, list_area.width, 1);
-        frame.render_widget(
-            Paragraph::new(format!(" {} {marker}", setting.label())).style(style),
-            row,
-        );
+
+        if setting == ExperimentSetting::TabTopMargin {
+            let val_str = format!("{}", app.tab_top_margin);
+            let spans = vec![
+                Span::styled(format!(" {}", setting.label()), style),
+                Span::styled(" ".repeat(35), style),
+                Span::styled("[-]", Style::default().fg(p.accent).add_modifier(Modifier::BOLD)),
+                Span::styled(format!(" {:^3} ", val_str), style),
+                Span::styled("[+]", Style::default().fg(p.accent).add_modifier(Modifier::BOLD)),
+            ];
+            frame.render_widget(Paragraph::new(Line::from(spans)).style(style), row);
+        } else {
+            let marker = if setting.enabled(app) { "[✓]" } else { "[ ]" };
+            frame.render_widget(
+                Paragraph::new(format!(" {} {marker}", setting.label())).style(style),
+                row,
+            );
+        }
     }
 }
 

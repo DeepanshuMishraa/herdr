@@ -250,10 +250,29 @@ fn compute_view_internal(
         } else {
             1
         };
-        let [tab_bar_rect, terminal_area] =
-            Layout::vertical([Constraint::Length(tab_bar_height), Constraint::Min(1)])
-                .areas(main_area);
-        (tab_bar_rect, terminal_area)
+        let top_margin = app.tab_top_margin;
+        if top_margin > 0 && main_area.height > tab_bar_height + top_margin as u16 {
+            let [_, tab_bar_rect, terminal_area] = Layout::vertical([
+                Constraint::Length(top_margin as u16),
+                Constraint::Length(tab_bar_height),
+                Constraint::Min(1),
+            ])
+            .areas(main_area);
+            (tab_bar_rect, terminal_area)
+        } else if top_margin < 0 {
+            let shift = top_margin.unsigned_abs();
+            let y = main_area.y.saturating_sub(shift);
+            let tab_bar_rect = Rect::new(main_area.x, y, main_area.width, tab_bar_height);
+            let terminal_y = main_area.y.saturating_add(tab_bar_height).saturating_sub(shift);
+            let terminal_height = main_area.height.saturating_add(shift).saturating_sub(tab_bar_height);
+            let terminal_area = Rect::new(main_area.x, terminal_y, main_area.width, terminal_height);
+            (tab_bar_rect, terminal_area)
+        } else {
+            let [tab_bar_rect, terminal_area] =
+                Layout::vertical([Constraint::Length(tab_bar_height), Constraint::Min(1)])
+                    .areas(main_area);
+            (tab_bar_rect, terminal_area)
+        }
     } else if app.compact_mode && main_area.height > 1 {
         // Reserve a 1-row blank strip at the top so content isn't flush against the edge
         let [_, terminal_area] =
@@ -662,6 +681,23 @@ mod tests {
     use crate::{app::state::ViewLayout, layout::PaneInfo, workspace::Workspace};
     use ratatui::style::Color;
     use ratatui::{backend::TestBackend, Terminal};
+
+    #[test]
+    fn tab_top_margin_adjusts_tab_bar_y_in_view() {
+        let mut app = crate::app::state::AppState::test_new();
+        let ws = Workspace::test_new("test");
+        app.workspaces = vec![ws];
+        app.active = Some(0);
+        app.selected = 0;
+        app.mode = Mode::Terminal;
+        app.tab_top_margin = 3;
+
+        compute_view(&mut app, Rect::new(0, 0, 80, 20));
+
+        assert_eq!(app.view.tab_bar_rect.y, 3);
+        assert_eq!(app.view.tab_bar_rect.height, 2);
+        assert_eq!(app.view.terminal_area.y, 5);
+    }
 
     #[test]
     fn copy_feedback_offset_only_increases_when_toast_rect_overlaps() {
