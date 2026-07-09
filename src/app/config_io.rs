@@ -129,7 +129,7 @@ impl App {
         }
     }
 
-    pub(super) fn save_tab_top_margin(&mut self, val: i16) {
+    pub(super) fn save_tab_top_margin(&mut self, val: f32) {
         if self.update_config_file("tab top margin", |content| {
             crate::config::upsert_section_value(content, "ui", "tab_top_margin", &val.to_string())
         }) {

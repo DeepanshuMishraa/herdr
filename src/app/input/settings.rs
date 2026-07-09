@@ -11,6 +11,13 @@ use crate::{
     config::ToastDelivery,
 };
 
+fn format_margin(val: f32) -> String {
+    format!("{:.2}", val)
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .to_string()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 // The shared `Save` verb is semantic: these actions persist settings.
 #[allow(clippy::enum_variant_names)]
@@ -24,7 +31,7 @@ pub(super) enum SettingsAction {
     SavePaneHistory(bool),
     SaveSwitchAsciiInputSourceInPrefix(bool),
     SaveCompactMode(bool),
-    SaveTabTopMargin(i16),
+    SaveTabTopMargin(u32),
     InstallRecommendedIntegrations,
 }
 
@@ -53,8 +60,12 @@ fn experiment_toggle_action(state: &AppState, idx: usize) -> Option<SettingsActi
             !ExperimentSetting::CompactMode.enabled(state),
         )),
         ExperimentSetting::TabTopMargin => {
-            let next_val = if state.tab_top_margin > 0 { 0 } else { 1 };
-            Some(SettingsAction::SaveTabTopMargin(next_val))
+            let next_val = if state.tab_top_margin > 0.0 {
+                0.0f32
+            } else {
+                1.0f32
+            };
+            Some(SettingsAction::SaveTabTopMargin(next_val.to_bits()))
         }
     }
 }
@@ -88,8 +99,8 @@ impl App {
                     self.render_dirty.store(true, Ordering::Release);
                     self.render_notify.notify_one();
                 }
-                SettingsAction::SaveTabTopMargin(val) => {
-                    self.state.tab_top_margin = val;
+                SettingsAction::SaveTabTopMargin(val_bits) => {
+                    self.state.tab_top_margin = f32::from_bits(val_bits);
                     self.render_dirty.store(true, Ordering::Release);
                     self.render_notify.notify_one();
                 }
@@ -313,40 +324,75 @@ pub(super) fn update_settings_state(state: &mut AppState, key: KeyEvent) -> Opti
             KeyCode::Down | KeyCode::Char('j') => {
                 state.settings.list.move_next(ExperimentSetting::ALL.len())
             }
-            KeyCode::Enter | KeyCode::Char(' ') => {
+            KeyCode::Enter => {
+                if state.settings.list.selected == 3 {
+                    let val = state.settings.margin_input.parse::<f32>().unwrap_or(0.0);
+                    return Some(SettingsAction::SaveTabTopMargin(val.to_bits()));
+                }
                 return experiment_toggle_action(state, state.settings.list.selected);
             }
-            KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h') => {
-                if key.code != KeyCode::BackTab && state.settings.list.selected == 3 {
-                    return Some(SettingsAction::SaveTabTopMargin(
-                        state.tab_top_margin.saturating_sub(1),
-                    ));
+            KeyCode::Char(' ') => {
+                if state.settings.list.selected != 3 {
+                    return experiment_toggle_action(state, state.settings.list.selected);
                 }
+            }
+            KeyCode::BackTab => {
                 state.settings.section = SettingsSection::Integrations;
                 state.settings.list.selected = 0;
             }
-            KeyCode::Tab | KeyCode::Right | KeyCode::Char('l') => {
-                if key.code != KeyCode::Tab && state.settings.list.selected == 3 {
-                    return Some(SettingsAction::SaveTabTopMargin(
-                        state.tab_top_margin.saturating_add(1),
-                    ));
-                }
+            KeyCode::Tab => {
                 state.settings.section = SettingsSection::Theme;
                 state.settings.list.selected =
                     current_theme_index(&state.settings.theme_names, &state.theme_name);
             }
+            KeyCode::Left | KeyCode::Char('h') => {
+                if state.settings.list.selected == 3 {
+                    let current = state.settings.margin_input.parse::<f32>().unwrap_or(0.0);
+                    state.settings.margin_input = format_margin(current - 0.25);
+                } else {
+                    state.settings.section = SettingsSection::Integrations;
+                    state.settings.list.selected = 0;
+                }
+            }
+            KeyCode::Right | KeyCode::Char('l') => {
+                if state.settings.list.selected == 3 {
+                    let current = state.settings.margin_input.parse::<f32>().unwrap_or(0.0);
+                    state.settings.margin_input = format_margin(current + 0.25);
+                } else {
+                    state.settings.section = SettingsSection::Theme;
+                    state.settings.list.selected =
+                        current_theme_index(&state.settings.theme_names, &state.theme_name);
+                }
+            }
             KeyCode::Char('-') => {
                 if state.settings.list.selected == 3 {
-                    return Some(SettingsAction::SaveTabTopMargin(
-                        state.tab_top_margin.saturating_sub(1),
-                    ));
+                    if state.settings.margin_input.is_empty() || state.settings.margin_input == "0"
+                    {
+                        state.settings.margin_input = "-".to_string();
+                    } else {
+                        let current = state.settings.margin_input.parse::<f32>().unwrap_or(0.0);
+                        state.settings.margin_input = format_margin(current - 0.25);
+                    }
                 }
             }
             KeyCode::Char('+') | KeyCode::Char('=') => {
                 if state.settings.list.selected == 3 {
-                    return Some(SettingsAction::SaveTabTopMargin(
-                        state.tab_top_margin.saturating_add(1),
-                    ));
+                    let current = state.settings.margin_input.parse::<f32>().unwrap_or(0.0);
+                    state.settings.margin_input = format_margin(current + 0.25);
+                }
+            }
+            KeyCode::Char(ch) if ch.is_ascii_digit() || ch == '.' => {
+                if state.settings.list.selected == 3 {
+                    if state.settings.margin_input == "0" && ch != '.' {
+                        state.settings.margin_input = ch.to_string();
+                    } else if state.settings.margin_input.len() < 8 {
+                        state.settings.margin_input.push(ch);
+                    }
+                }
+            }
+            KeyCode::Backspace => {
+                if state.settings.list.selected == 3 {
+                    state.settings.margin_input.pop();
                 }
             }
             _ => {
@@ -400,6 +446,7 @@ pub(crate) fn open_settings_at(state: &mut AppState, section: SettingsSection) {
         SettingsSection::Experiments => 0,
         SettingsSection::Integrations => 0,
     };
+    state.settings.margin_input = format_margin(state.tab_top_margin);
     state.mode = Mode::Settings;
 }
 
@@ -541,14 +588,20 @@ impl AppState {
                             if idx == 3 {
                                 let list_area_x = self.settings_content_rect().x;
                                 let rel_col = mouse.column.saturating_sub(list_area_x);
-                                if rel_col >= 35 && rel_col <= 37 {
-                                    Some(SettingsAction::SaveTabTopMargin(
-                                        self.tab_top_margin.saturating_sub(1),
-                                    ))
-                                } else if rel_col >= 41 && rel_col <= 43 {
-                                    Some(SettingsAction::SaveTabTopMargin(
-                                        self.tab_top_margin.saturating_add(1),
-                                    ))
+                                if rel_col >= 40 && rel_col <= 42 {
+                                    let current =
+                                        self.settings.margin_input.parse::<f32>().unwrap_or(0.0);
+                                    self.settings.margin_input = format_margin(current - 0.25);
+                                    None
+                                } else if rel_col >= 52 && rel_col <= 54 {
+                                    let current =
+                                        self.settings.margin_input.parse::<f32>().unwrap_or(0.0);
+                                    self.settings.margin_input = format_margin(current + 0.25);
+                                    None
+                                } else if rel_col >= 57 && rel_col <= 62 {
+                                    let val =
+                                        self.settings.margin_input.parse::<f32>().unwrap_or(0.0);
+                                    Some(SettingsAction::SaveTabTopMargin(val.to_bits()))
                                 } else {
                                     None
                                 }
@@ -710,7 +763,7 @@ mod tests {
     #[test]
     fn settings_experiments_adjusts_tab_top_margin() {
         let mut state = state_with_workspaces(&["test"]);
-        state.tab_top_margin = 2;
+        state.tab_top_margin = 2.0;
         open_settings_at(&mut state, SettingsSection::Experiments);
 
         // TabTopMargin is index 3 — navigate down 3 times
@@ -721,19 +774,63 @@ mod tests {
             );
         }
 
-        // Press '+' to increment
+        // Press '+' to increment the input field by 0.25
         let action_inc = update_settings_state(
             &mut state,
             KeyEvent::new(KeyCode::Char('+'), KeyModifiers::empty()),
         );
-        assert_eq!(action_inc, Some(SettingsAction::SaveTabTopMargin(3)));
+        assert_eq!(action_inc, None);
+        assert_eq!(state.settings.margin_input, "2.25");
 
-        // Press '-' to decrement
-        let action_dec = update_settings_state(
+        // Type digits to replace/edit the input
+        update_settings_state(
+            &mut state,
+            KeyEvent::new(KeyCode::Backspace, KeyModifiers::empty()),
+        );
+        assert_eq!(state.settings.margin_input, "2.2");
+
+        // Clear it
+        update_settings_state(
+            &mut state,
+            KeyEvent::new(KeyCode::Backspace, KeyModifiers::empty()),
+        );
+        update_settings_state(
+            &mut state,
+            KeyEvent::new(KeyCode::Backspace, KeyModifiers::empty()),
+        );
+        update_settings_state(
+            &mut state,
+            KeyEvent::new(KeyCode::Backspace, KeyModifiers::empty()),
+        );
+        assert_eq!(state.settings.margin_input, "");
+
+        update_settings_state(
             &mut state,
             KeyEvent::new(KeyCode::Char('-'), KeyModifiers::empty()),
         );
-        assert_eq!(action_dec, Some(SettingsAction::SaveTabTopMargin(1)));
+        update_settings_state(
+            &mut state,
+            KeyEvent::new(KeyCode::Char('0'), KeyModifiers::empty()),
+        );
+        update_settings_state(
+            &mut state,
+            KeyEvent::new(KeyCode::Char('.'), KeyModifiers::empty()),
+        );
+        update_settings_state(
+            &mut state,
+            KeyEvent::new(KeyCode::Char('5'), KeyModifiers::empty()),
+        );
+        assert_eq!(state.settings.margin_input, "-0.5");
+
+        // Press Enter to save
+        let action_save = update_settings_state(
+            &mut state,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+        );
+        assert_eq!(
+            action_save,
+            Some(SettingsAction::SaveTabTopMargin((-0.5f32).to_bits()))
+        );
     }
 
     #[test]

@@ -583,9 +583,7 @@ impl Palette {
     pub fn from_name(name: &str) -> Option<Self> {
         match name.to_lowercase().replace([' ', '_'], "-").as_str() {
             "catppuccin" | "catppuccin-mocha" | "mocha" => Some(Self::catppuccin()),
-            "catppuccin-macchiato" | "macchiato" => {
-                Some(Self::catppuccin_macchiato())
-            }
+            "catppuccin-macchiato" | "macchiato" => Some(Self::catppuccin_macchiato()),
             "catppuccin-latte" | "latte" | "light" => Some(Self::catppuccin_latte()),
             "terminal" => Some(Self::terminal()),
             "tokyo-night" | "tokyonight" => Some(Self::tokyo_night()),
@@ -1040,7 +1038,7 @@ impl ExperimentSetting {
                 state.switch_ascii_input_source_in_prefix_enabled()
             }
             Self::CompactMode => state.compact_mode,
-            Self::TabTopMargin => state.tab_top_margin != 0,
+            Self::TabTopMargin => state.tab_top_margin != 0.0,
         }
     }
 }
@@ -1155,6 +1153,8 @@ pub struct SettingsState {
     pub original_palette: Option<Palette>,
     /// The theme name before opening settings.
     pub original_theme: Option<String>,
+    /// Input field buffer for tab top margin setting.
+    pub margin_input: String,
 }
 
 pub(crate) enum DragTarget {
@@ -1525,7 +1525,7 @@ pub struct AppState {
     pub dim_auto_named_tabs: bool,
     pub tab_bar_left_padding: bool,
     pub tab_bar_vertical_padding: bool,
-    pub tab_top_margin: i16,
+    pub tab_top_margin: f32,
     pub show_pane_scrollbars: bool,
     pub show_sidebar_quit_button: bool,
     pub show_sidebar_section_labels: bool,
@@ -1893,7 +1893,7 @@ impl AppState {
             dim_auto_named_tabs: true,
             tab_bar_left_padding: false,
             tab_bar_vertical_padding: true,
-            tab_top_margin: 0,
+            tab_top_margin: 0.0,
             show_pane_scrollbars: true,
             show_sidebar_quit_button: true,
             show_sidebar_section_labels: false,
@@ -1949,6 +1949,7 @@ impl AppState {
                 theme_names: available_theme_names(),
                 original_palette: None,
                 original_theme: None,
+                margin_input: String::new(),
             },
             integration_recommendations: Vec::new(),
             agent_manifest_summaries: Vec::new(),

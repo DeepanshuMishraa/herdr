@@ -467,13 +467,24 @@ fn render_settings_experiments(app: &AppState, frame: &mut Frame, area: Rect) {
         let row = Rect::new(list_area.x, list_area.y + idx as u16, list_area.width, 1);
 
         if setting == ExperimentSetting::TabTopMargin {
-            let val_str = format!("{}", app.tab_top_margin);
+            let val_str = &app.settings.margin_input;
             let spans = vec![
                 Span::styled(format!(" {}", setting.label()), style),
-                Span::styled(" ".repeat(35), style),
-                Span::styled("[-]", Style::default().fg(p.accent).add_modifier(Modifier::BOLD)),
-                Span::styled(format!(" {:^3} ", val_str), style),
-                Span::styled("[+]", Style::default().fg(p.accent).add_modifier(Modifier::BOLD)),
+                Span::styled(" ".repeat(25), style),
+                Span::styled(
+                    "[-]",
+                    Style::default().fg(p.accent).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(format!(" [ {:^3} ] ", val_str), style),
+                Span::styled(
+                    "[+]",
+                    Style::default().fg(p.accent).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled("  ", style),
+                Span::styled(
+                    "[Save]",
+                    Style::default().fg(p.green).add_modifier(Modifier::BOLD),
+                ),
             ];
             frame.render_widget(Paragraph::new(Line::from(spans)).style(style), row);
         } else {

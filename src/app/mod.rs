@@ -661,6 +661,7 @@ impl App {
                 theme_names: state::available_theme_names(),
                 original_palette: None,
                 original_theme: None,
+                margin_input: String::new(),
             },
             integration_recommendations: crate::integration::integration_recommendations(),
             agent_manifest_summaries,

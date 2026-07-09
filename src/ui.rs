@@ -251,21 +251,29 @@ fn compute_view_internal(
             1
         };
         let top_margin = app.tab_top_margin;
-        if top_margin > 0 && main_area.height > tab_bar_height + top_margin as u16 {
+        let rounded_margin = top_margin.round() as i16;
+        if rounded_margin > 0 && main_area.height > tab_bar_height + rounded_margin as u16 {
             let [_, tab_bar_rect, terminal_area] = Layout::vertical([
-                Constraint::Length(top_margin as u16),
+                Constraint::Length(rounded_margin as u16),
                 Constraint::Length(tab_bar_height),
                 Constraint::Min(1),
             ])
             .areas(main_area);
             (tab_bar_rect, terminal_area)
-        } else if top_margin < 0 {
-            let shift = top_margin.unsigned_abs();
+        } else if rounded_margin < 0 {
+            let shift = rounded_margin.unsigned_abs();
             let y = main_area.y.saturating_sub(shift);
             let tab_bar_rect = Rect::new(main_area.x, y, main_area.width, tab_bar_height);
-            let terminal_y = main_area.y.saturating_add(tab_bar_height).saturating_sub(shift);
-            let terminal_height = main_area.height.saturating_add(shift).saturating_sub(tab_bar_height);
-            let terminal_area = Rect::new(main_area.x, terminal_y, main_area.width, terminal_height);
+            let terminal_y = main_area
+                .y
+                .saturating_add(tab_bar_height)
+                .saturating_sub(shift);
+            let terminal_height = main_area
+                .height
+                .saturating_add(shift)
+                .saturating_sub(tab_bar_height);
+            let terminal_area =
+                Rect::new(main_area.x, terminal_y, main_area.width, terminal_height);
             (tab_bar_rect, terminal_area)
         } else {
             let [tab_bar_rect, terminal_area] =
@@ -690,7 +698,7 @@ mod tests {
         app.active = Some(0);
         app.selected = 0;
         app.mode = Mode::Terminal;
-        app.tab_top_margin = 3;
+        app.tab_top_margin = 3.0;
 
         compute_view(&mut app, Rect::new(0, 0, 80, 20));
 

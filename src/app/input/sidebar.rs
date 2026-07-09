@@ -555,7 +555,11 @@ mod tests {
         app.state.detach_exits = false;
         let (red, _, _) = crate::ui::sidebar_traffic_light_rects(app.state.view.sidebar_rect);
 
-        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), red.x + 1, red.y));
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            red.x + 1,
+            red.y,
+        ));
 
         assert!(!app.state.detach_requested);
         assert!(!app.state.should_quit);

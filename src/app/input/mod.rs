@@ -289,8 +289,8 @@ impl App {
                         self.render_dirty.store(true, Ordering::Release);
                         self.render_notify.notify_one();
                     }
-                    SettingsAction::SaveTabTopMargin(val) => {
-                        self.save_tab_top_margin(val);
+                    SettingsAction::SaveTabTopMargin(val_bits) => {
+                        self.save_tab_top_margin(f32::from_bits(val_bits));
                     }
                     SettingsAction::InstallRecommendedIntegrations => {
                         self.install_recommended_integrations()
