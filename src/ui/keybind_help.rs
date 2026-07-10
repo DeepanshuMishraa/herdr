@@ -141,6 +141,7 @@ pub(super) fn keybind_help_groups(app: &AppState) -> Vec<HelpGroup> {
             keybind_label(&kb.toggle_compact_mode),
             "toggle compact mode",
         ),
+        help_entry(keybind_label(&kb.toggle_diff_viewer), "toggle diff viewer"),
         help_entry(keybind_label(&kb.focus_pane_left), "focus pane left"),
         help_entry(keybind_label(&kb.focus_pane_down), "focus pane down"),
         help_entry(keybind_label(&kb.focus_pane_up), "focus pane up"),

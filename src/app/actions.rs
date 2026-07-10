@@ -2846,6 +2846,9 @@ impl AppState {
     }
 
     fn handle_pane_died(&mut self, pane_id: PaneId) {
+        if self.mode == Mode::DiffViewer {
+            self.mode = Mode::Terminal;
+        }
         self.pending_agent_notifications.remove(&pane_id);
         self.plugin_panes.remove(&pane_id);
         let ws_idx = self

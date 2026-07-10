@@ -308,6 +308,7 @@ pub struct Keybinds {
     pub toggle_sidebar: ActionKeybinds,
     pub toggle_hide_sidebar: ActionKeybinds,
     pub toggle_compact_mode: ActionKeybinds,
+    pub toggle_diff_viewer: ActionKeybinds,
     pub custom_commands: Vec<CustomCommandKeybind>,
 }
 
@@ -502,6 +503,7 @@ impl Config {
                 "keys.toggle_compact_mode",
                 &self.keys.toggle_compact_mode
             ),
+            toggle_diff_viewer: action!("keys.toggle_diff_viewer", &self.keys.toggle_diff_viewer),
             custom_commands: Vec::new(),
         };
 

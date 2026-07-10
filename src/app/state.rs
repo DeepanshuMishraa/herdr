@@ -860,6 +860,7 @@ pub enum Mode {
     ConfirmClose,
     ContextMenu,
     Settings,
+    DiffViewer,
     GlobalMenu,
     KeybindHelp,
     Navigator,
@@ -1194,6 +1195,133 @@ pub(crate) enum DragTarget {
     SidebarDivider,
     SidebarSectionDivider,
     WindowDrag,
+}
+
+/// Active panel in the diff viewer modal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiffPanel {
+    Left,
+    Right,
+}
+
+/// Whether a line in the old file is part of a change region.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OldLineChange {
+    /// Line is not in any diff hunk (unchanged region).
+    None,
+    /// Line is context within a hunk (unchanged, but near a change).
+    Context,
+    /// Line was removed (`-` in the diff).
+    Removed,
+}
+
+/// One changed file entry in the diff viewer.
+#[derive(Debug, Clone)]
+pub struct DiffFileEntry {
+    pub path: String,
+    /// Line content of the old version (HEAD).
+    pub old_content: Vec<String>,
+    /// Unified diff lines for this file.
+    pub diff_lines: Vec<String>,
+    /// 0-based line number in `old_content` where the first hunk starts.
+    /// Used to auto-scroll the old file panel to the changed region.
+    pub first_change_line: usize,
+    /// Per-line change status for the old file, same length as `old_content`.
+    /// Built by parsing the unified diff hunks.
+    pub old_change_map: Vec<OldLineChange>,
+}
+
+/// State for the diff viewer modal.
+#[derive(Debug, Clone)]
+pub struct DiffViewerState {
+    pub files: Vec<DiffFileEntry>,
+    pub active_file: usize,
+    pub active_panel: DiffPanel,
+    pub left_scroll: usize,
+    pub right_scroll: usize,
+}
+
+impl Default for DiffViewerState {
+    fn default() -> Self {
+        Self {
+            files: Vec::new(),
+            active_file: 0,
+            active_panel: DiffPanel::Left,
+            left_scroll: 0,
+            right_scroll: 0,
+        }
+    }
+}
+
+impl DiffViewerState {
+    pub fn active_file_entry(&self) -> Option<&DiffFileEntry> {
+        self.files.get(self.active_file)
+    }
+
+    pub fn active_panel_lines(&self) -> Option<&[String]> {
+        let entry = self.active_file_entry()?;
+        Some(match self.active_panel {
+            DiffPanel::Left => &entry.old_content,
+            DiffPanel::Right => &entry.diff_lines,
+        })
+    }
+
+    pub fn active_scroll(&self) -> usize {
+        match self.active_panel {
+            DiffPanel::Left => self.left_scroll,
+            DiffPanel::Right => self.right_scroll,
+        }
+    }
+
+    pub fn active_scroll_mut(&mut self) -> &mut usize {
+        match self.active_panel {
+            DiffPanel::Left => &mut self.left_scroll,
+            DiffPanel::Right => &mut self.right_scroll,
+        }
+    }
+
+    pub fn max_scroll(&self) -> usize {
+        let Some(lines) = self.active_panel_lines() else {
+            return 0;
+        };
+        lines.len().max(1).saturating_sub(1)
+    }
+
+    pub fn scroll_active(&mut self, delta: isize) {
+        let max = self.max_scroll();
+        let scroll = self.active_scroll();
+        let new = scroll as isize + delta;
+        *self.active_scroll_mut() = new.clamp(0, max as isize) as usize;
+    }
+
+    fn reset_scroll_to_change(&mut self) {
+        let change = self
+            .active_file_entry()
+            .map(|f| f.first_change_line.saturating_sub(5))
+            .unwrap_or(0);
+        self.left_scroll = change;
+        self.right_scroll = 0;
+    }
+
+    pub fn prev_file(&mut self) {
+        if self.files.is_empty() {
+            return;
+        }
+        if self.active_file == 0 {
+            self.active_file = self.files.len() - 1;
+        } else {
+            self.active_file -= 1;
+        }
+        self.reset_scroll_to_change();
+    }
+
+    pub fn next_file(&mut self) {
+        if self.files.is_empty() {
+            return;
+        }
+        self.active_file = (self.active_file + 1) % self.files.len();
+        self.reset_scroll_to_change();
+    }
 }
 
 /// Active mouse drag on a split border or sidebar divider.
@@ -1604,9 +1732,137 @@ pub struct AppState {
     /// Terminal runtimes that should be shut down by the app/runtime layer
     /// after state has detached their terminal metadata.
     pub(crate) terminal_runtime_shutdowns: Vec<crate::terminal::TerminalId>,
+    pub diff_viewer: DiffViewerState,
 }
 
 impl AppState {
+    pub fn toggle_diff_viewer(&mut self, runtimes: &mut crate::terminal::TerminalRuntimeRegistry) {
+        if self.mode == Mode::DiffViewer {
+            self.mode = Mode::Terminal;
+            return;
+        }
+
+        let active_ws_idx = match self.active {
+            Some(idx) => idx,
+            None => return,
+        };
+
+        let cwd = {
+            let Some(ws) = self.workspaces.get(active_ws_idx) else {
+                return;
+            };
+            if ws.tabs.is_empty() {
+                return;
+            }
+            let tab = &ws.tabs[ws.active_tab];
+            let mut cwd = ws.identity_cwd.clone();
+            let focused_pane_id = tab.layout.focused();
+            if let Some(rt) =
+                self.runtime_for_pane_in_workspace(runtimes, active_ws_idx, focused_pane_id)
+            {
+                if let Some(pane_cwd) = rt.cwd() {
+                    cwd = pane_cwd;
+                }
+            }
+            cwd
+        };
+
+        // Get list of changed files
+        let name_output = std::process::Command::new("git")
+            .args(["diff", "--name-only", "--no-color"])
+            .current_dir(&cwd)
+            .output();
+
+        let file_names: Vec<String> = match name_output {
+            Ok(output) if output.status.success() && !output.stdout.is_empty() => {
+                String::from_utf8_lossy(&output.stdout)
+                    .lines()
+                    .map(|l| l.to_string())
+                    .collect()
+            }
+            _ => Vec::new(),
+        };
+
+        if file_names.is_empty() {
+            // No changed files – show a placeholder entry
+            self.diff_viewer = DiffViewerState {
+                files: vec![DiffFileEntry {
+                    path: String::new(),
+                    old_content: vec!["no changes in working tree".to_string()],
+                    diff_lines: vec!["no changes".to_string()],
+                    first_change_line: 0,
+                    old_change_map: Vec::new(),
+                }],
+                ..Default::default()
+            };
+            self.mode = Mode::DiffViewer;
+            return;
+        }
+
+        // Build per-file entries
+        let mut files = Vec::with_capacity(file_names.len());
+        for path in &file_names {
+            // Capture old file content (HEAD version)
+            let old_content = std::process::Command::new("git")
+                .args(["show", &format!("HEAD:{}", path)])
+                .current_dir(&cwd)
+                .output();
+
+            let old_lines: Vec<String> = match old_content {
+                Ok(output) if output.status.success() && !output.stdout.is_empty() => {
+                    String::from_utf8_lossy(&output.stdout)
+                        .lines()
+                        .map(|l| l.to_string())
+                        .collect()
+                }
+                _ => {
+                    vec!["<new file>".to_string()]
+                }
+            };
+
+            // Capture per-file diff
+            let diff_output = std::process::Command::new("git")
+                .args(["diff", "--no-color", "--", path])
+                .current_dir(&cwd)
+                .output();
+
+            let diff_lines: Vec<String> = match diff_output {
+                Ok(output) if output.status.success() && !output.stdout.is_empty() => {
+                    String::from_utf8_lossy(&output.stdout)
+                        .lines()
+                        .map(|l| l.to_string())
+                        .collect()
+                }
+                _ => {
+                    vec!["<no diff>".to_string()]
+                }
+            };
+
+            // Parse first hunk position and build old-file change map
+            let (first_change, change_map) = build_old_change_map(&old_lines, &diff_lines);
+
+            files.push(DiffFileEntry {
+                path: path.clone(),
+                old_content: old_lines,
+                diff_lines,
+                first_change_line: first_change,
+                old_change_map: change_map,
+            });
+        }
+
+        // Auto-scroll old file panel to first changed hunk (with context)
+        let initial_left = files.first().map(|f| f.first_change_line.saturating_sub(5)).unwrap_or(0);
+
+        self.diff_viewer = DiffViewerState {
+            files,
+            active_file: 0,
+            active_panel: DiffPanel::Right,
+            left_scroll: initial_left,
+            right_scroll: 0,
+        };
+        self.mode = Mode::DiffViewer;
+    }
+
     pub(crate) fn mark_session_dirty(&mut self) {
         self.session_dirty = true;
     }
@@ -1769,6 +2025,57 @@ impl AppState {
         }
         ws.active_tab().map(|tab| tab.layout.focused()) == Some(pane_id)
     }
+}
+
+/// Parse unified diff hunks and build a `first_change_line` + per-old-line change map.
+fn build_old_change_map(
+    old_lines: &[String],
+    diff_lines: &[String],
+) -> (usize, Vec<OldLineChange>) {
+    let mut map = vec![OldLineChange::None; old_lines.len()];
+    let mut first_change: Option<usize> = None;
+    let mut i = 0;
+    while i < diff_lines.len() {
+        let line = &diff_lines[i];
+        if let Some(rest) = line.strip_prefix("@@ -") {
+            // Parse old-file start position
+            let old_start_str = rest.split(|c| c == ',' || c == ' ').next().unwrap_or("1");
+            let old_start = old_start_str.parse::<usize>().unwrap_or(1).max(1);
+            let mut old_cursor = old_start.saturating_sub(1); // 0-based
+
+            if first_change.is_none() {
+                first_change = Some(old_cursor);
+            }
+
+            // Walk the hunk body lines until next @@
+            i += 1;
+            while i < diff_lines.len() {
+                let hunk_line = &diff_lines[i];
+                if hunk_line.starts_with("@@") {
+                    break; // next hunk
+                }
+                if hunk_line.starts_with('-') {
+                    // Removed line in old file
+                    if old_cursor < map.len() {
+                        map[old_cursor] = OldLineChange::Removed;
+                    }
+                    old_cursor = old_cursor.saturating_add(1);
+                } else if hunk_line.starts_with(' ') {
+                    // Context line in old file
+                    if old_cursor < map.len() && map[old_cursor] == OldLineChange::None {
+                        map[old_cursor] = OldLineChange::Context;
+                    }
+                    old_cursor = old_cursor.saturating_add(1);
+                }
+                // '+' lines are additions — no old-file counterpart
+                i += 1;
+            }
+        } else {
+            i += 1;
+        }
+    }
+
+    (first_change.unwrap_or(0), map)
 }
 
 #[cfg(test)]
@@ -1965,6 +2272,7 @@ impl AppState {
             host_terminal_theme: TerminalTheme::default(),
             session_dirty: false,
             terminal_runtime_shutdowns: Vec::new(),
+            diff_viewer: DiffViewerState::default(),
         }
     }
 

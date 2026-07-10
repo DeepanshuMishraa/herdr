@@ -676,6 +676,7 @@ impl App {
             host_terminal_theme: crate::terminal_theme::TerminalTheme::default(),
             session_dirty: false,
             terminal_runtime_shutdowns: Vec::new(),
+            diff_viewer: state::DiffViewerState::default(),
         };
 
         state.terminals = restored_terminals;
@@ -1679,6 +1680,9 @@ impl App {
             }
             Mode::Settings => {
                 self.handle_settings_key(key_event);
+            }
+            Mode::DiffViewer => {
+                input::handle_diff_viewer_key(&mut self.state, key_event);
             }
             Mode::Navigator => {
                 input::handle_navigator_key(&mut self.state, &self.terminal_runtimes, key_event);

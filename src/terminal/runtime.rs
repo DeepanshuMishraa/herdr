@@ -364,6 +364,10 @@ impl TerminalRuntime {
         self.0.try_send_bytes(bytes)
     }
 
+    pub(crate) fn pty_writer(&self) -> Option<crate::pty::actor::PtyIoActorHandle> {
+        self.0.pty_writer()
+    }
+
     pub async fn send_paste(&self, text: String) -> Result<(), mpsc::error::SendError<Bytes>> {
         self.0.send_paste(text).await
     }

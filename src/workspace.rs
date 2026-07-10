@@ -23,7 +23,7 @@ use self::git::git_ahead_behind;
 pub(crate) use self::tab::MovedPane;
 pub use self::{
     git::{
-        derive_label_from_cwd, git_branch, git_space_metadata, git_status_cache_key,
+        derive_label_from_cwd, git_branch, git_repo_root, git_space_metadata, git_status_cache_key,
         GitSpaceMetadata, GitStatusCacheEntry,
     },
     tab::{NewPane, Tab},
@@ -1000,7 +1000,7 @@ impl Workspace {
         self.public_pane_numbers.get(&pane_id).copied()
     }
 
-    fn launch_env_for_new_pane(
+    pub(crate) fn launch_env_for_new_pane(
         &self,
         tab_number: usize,
         pane_number: usize,

@@ -6,6 +6,7 @@ use ratatui::{
 };
 
 mod dialogs;
+mod diff;
 mod keybind_help;
 mod menus;
 mod mobile;
@@ -21,6 +22,7 @@ mod status;
 mod tabs;
 mod widgets;
 
+use self::diff::render_diff_viewer_overlay;
 use self::dialogs::{
     render_confirm_close_overlay, render_new_linked_worktree_overlay,
     render_open_existing_worktree_overlay, render_remove_worktree_overlay, render_rename_overlay,
@@ -231,7 +233,7 @@ fn compute_view_internal(
         return;
     }
 
-    let sidebar_w = if app.compact_mode || app.sidebar_hidden {
+    let sidebar_w = if app.compact_mode || app.sidebar_hidden || app.mode == Mode::DiffViewer {
         0
     } else if app.sidebar_collapsed {
         COLLAPSED_WIDTH
@@ -243,7 +245,9 @@ fn compute_view_internal(
     let [sidebar_area, main_area] =
         Layout::horizontal([Constraint::Length(sidebar_w), Constraint::Min(1)]).areas(area);
 
-    let has_tabs = !app.compact_mode && app.active.and_then(|i| app.workspaces.get(i)).is_some();
+    let has_tabs = !app.compact_mode
+        && app.mode != Mode::DiffViewer
+        && app.active.and_then(|i| app.workspaces.get(i)).is_some();
     let (tab_bar_rect, terminal_area) = if has_tabs && main_area.height > 1 {
         let tab_bar_height = if app.tab_bar_vertical_padding {
             2u16.min(main_area.height.saturating_sub(1))
@@ -281,7 +285,7 @@ fn compute_view_internal(
                     .areas(main_area);
             (tab_bar_rect, terminal_area)
         }
-    } else if app.compact_mode && main_area.height > 1 {
+    } else if (app.compact_mode || app.mode == Mode::DiffViewer) && main_area.height > 1 {
         // Reserve a 1-row blank strip at the top so content isn't flush against the edge
         let [_, terminal_area] =
             Layout::vertical([Constraint::Length(1), Constraint::Min(1)]).areas(main_area);
@@ -289,6 +293,8 @@ fn compute_view_internal(
     } else {
         (Rect::default(), main_area)
     };
+
+    // terminal_area stays unchanged (no split diff panel)
 
     if !app.compact_mode && !app.sidebar_collapsed && !app.sidebar_hidden {
         app.workspace_scroll = normalized_workspace_scroll(app, sidebar_area, app.workspace_scroll);
@@ -365,13 +371,20 @@ fn compute_view_internal(
         })
         .unwrap_or_default();
 
-    let pane_infos = compute_pane_infos(
+    let mut pane_infos = compute_pane_infos(
         app,
         terminal_runtimes,
         active_pane_area,
         resize_panes,
         cell_size,
     );
+
+    if app.mode == Mode::DiffViewer {
+        for info in &mut pane_infos {
+            info.is_focused = false;
+        }
+    }
+
     if resize_panes {
         resize_background_tab_panes_to_terminal_area(
             app,
@@ -411,6 +424,7 @@ fn compute_view_internal(
         toast_hit_area,
         pane_infos,
         split_borders,
+
     };
 }
 
@@ -491,6 +505,7 @@ fn compute_mobile_view(
         toast_hit_area,
         pane_infos,
         split_borders,
+
     };
 }
 
@@ -534,6 +549,7 @@ pub fn render_with_runtime_registry(
     if app.view.layout != ViewLayout::Mobile && !app.compact_mode {
         render_tab_bar(app, terminal_runtimes, frame, tab_bar_area);
     }
+
     render_panes(app, terminal_runtimes, frame, pane_area);
 
     // Ambient notifications sit above panes, but below interactive overlays.
@@ -564,6 +580,7 @@ pub fn render_with_runtime_registry(
         }
         Mode::ConfirmRemoveWorktree => render_remove_worktree_overlay(app, frame, frame.area()),
         Mode::GlobalMenu => render_global_launcher_menu(app, frame),
+        Mode::DiffViewer => render_diff_viewer_overlay(app, frame),
         Mode::KeybindHelp => render_keybind_help_overlay(app, frame),
         Mode::Navigator => render_navigator_overlay(app, terminal_runtimes, frame),
         Mode::Terminal => {}

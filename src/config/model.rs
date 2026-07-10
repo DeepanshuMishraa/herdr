@@ -427,6 +427,8 @@ pub struct KeysConfig {
     pub toggle_hide_sidebar: BindingConfig,
     /// Toggle compact mode — hides sidebar and tab bar. Unset by default.
     pub toggle_compact_mode: BindingConfig,
+    /// Toggle diff viewer. Unset by default.
+    pub toggle_diff_viewer: BindingConfig,
     /// Optional indexed shortcuts expanded over number keys 1-9.
     pub indexed: IndexedKeysConfig,
     /// Prefix-mode custom command bindings.
@@ -665,6 +667,7 @@ impl Default for KeysConfig {
             toggle_sidebar: BindingConfig::one("prefix+b"),
             toggle_hide_sidebar: BindingConfig::empty(),
             toggle_compact_mode: BindingConfig::empty(),
+            toggle_diff_viewer: BindingConfig::empty(),
             indexed: IndexedKeysConfig::default(),
             command: Vec::new(),
         }

@@ -2460,6 +2460,14 @@ impl PaneRuntime {
         self.io.try_send_bytes(bytes)
     }
 
+    pub(crate) fn pty_writer(&self) -> Option<crate::pty::actor::PtyIoActorHandle> {
+        match &self.io {
+            PaneRuntimeIo::Actor(handle) => Some(handle.clone()),
+            #[cfg(test)]
+            PaneRuntimeIo::TestChannel { .. } => None,
+        }
+    }
+
     pub async fn send_paste(&self, text: String) -> Result<(), mpsc::error::SendError<Bytes>> {
         let bracketed = self
             .input_state()

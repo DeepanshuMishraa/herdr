@@ -294,6 +294,31 @@ pub(crate) fn insert_navigator_search_text(
     state.clamp_navigator_selection_from(terminal_runtimes);
 }
 
+pub(crate) fn handle_diff_viewer_key(state: &mut AppState, key: KeyEvent) {
+    match key.code {
+        KeyCode::Up | KeyCode::Char('k') => state.diff_viewer.scroll_active(-1),
+        KeyCode::Down | KeyCode::Char('j') => state.diff_viewer.scroll_active(1),
+        KeyCode::Char('h') => {
+            state.diff_viewer.active_panel = crate::app::state::DiffPanel::Left;
+        }
+        KeyCode::Char('l') => {
+            state.diff_viewer.active_panel = crate::app::state::DiffPanel::Right;
+        }
+        KeyCode::Char('n') | KeyCode::Tab => state.diff_viewer.next_file(),
+        KeyCode::Char('p') | KeyCode::BackTab => state.diff_viewer.prev_file(),
+        KeyCode::PageUp => state.diff_viewer.scroll_active(-(20isize).max(-8)),
+        KeyCode::PageDown => state.diff_viewer.scroll_active(20),
+        KeyCode::Home => {
+            *state.diff_viewer.active_scroll_mut() = 0;
+        }
+        KeyCode::End => {
+            *state.diff_viewer.active_scroll_mut() = state.diff_viewer.max_scroll();
+        }
+        KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => leave_modal(state),
+        _ => {}
+    }
+}
+
 pub(crate) fn handle_keybind_help_key(state: &mut AppState, key: KeyEvent) {
     match key.code {
         KeyCode::Up | KeyCode::Char('k') => state.scroll_keybind_help(-1),

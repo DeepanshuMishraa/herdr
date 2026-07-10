@@ -131,6 +131,19 @@ impl AppState {
             return None;
         }
 
+        if self.mode == Mode::DiffViewer {
+            match mouse.kind {
+                MouseEventKind::ScrollUp => {
+                    self.diff_viewer.scroll_active(-3);
+                }
+                MouseEventKind::ScrollDown => {
+                    self.diff_viewer.scroll_active(3);
+                }
+                _ => {}
+            }
+            return None;
+        }
+
         if self.mode == Mode::KeybindHelp {
             return None;
         }
@@ -503,6 +516,10 @@ impl AppState {
                     }
                     return None;
                 }
+                if self.on_diff_button(terminal_runtimes, mouse.column, mouse.row) {
+                    self.toggle_diff_viewer(terminal_runtimes);
+                    return None;
+                }
 
                 // click on tab bar but not on any specific element → window drag
                 if self.on_tab_bar(mouse.column, mouse.row) {
@@ -785,6 +802,7 @@ impl AppState {
                         DragTarget::SidebarDivider => {
                             self.set_manual_sidebar_width(mouse.column);
                         }
+
                         DragTarget::SidebarSectionDivider => {
                             self.set_sidebar_section_split(mouse.row);
                         }
@@ -1316,6 +1334,49 @@ impl AppState {
             && col < area.x + area.width
     }
 
+    pub(super) fn on_diff_button(
+        &self,
+        terminal_runtimes: &crate::terminal::TerminalRuntimeRegistry,
+        col: u16,
+        row: u16,
+    ) -> bool {
+        let Some(active_ws_idx) = self.active else {
+            return false;
+        };
+        let Some(ws) = self.workspaces.get(active_ws_idx) else {
+            return false;
+        };
+        let mut is_git = self.mode == crate::app::Mode::DiffViewer;
+        if !is_git {
+            if let Some(tab) = ws.tabs.get(ws.active_tab) {
+                let pane_id = tab.layout.focused();
+                if let Some(rt) =
+                    self.runtime_for_pane_in_workspace(terminal_runtimes, active_ws_idx, pane_id)
+                {
+                    if let Some(cwd) = rt.cwd() {
+                        is_git = crate::workspace::git_repo_root(&cwd).is_some();
+                    }
+                }
+            }
+        }
+        if !is_git {
+            return false;
+        }
+        let area = self.view.tab_bar_rect;
+        let button_width = 9;
+        if area.width > button_width + 10 {
+            let button_x = area.x + area.width.saturating_sub(button_width);
+            let button_y = if self.tab_bar_vertical_padding && area.height > 1 {
+                area.y.saturating_add(1)
+            } else {
+                area.y
+            };
+            row == button_y && col >= button_x && col < button_x + button_width
+        } else {
+            false
+        }
+    }
+
     pub(super) fn find_border_at(&self, col: u16, row: u16) -> Option<&SplitBorder> {
         self.view.split_borders.iter().find(|b| match b.direction {
             Direction::Horizontal => {
@@ -1753,6 +1814,8 @@ impl AppState {
             grab_row_offset,
         ))
     }
+
+
 }
 
 #[cfg(test)]

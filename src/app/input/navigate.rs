@@ -605,6 +605,7 @@ pub(crate) enum NavigateAction {
     ToggleSidebar,
     ToggleHideSidebar,
     ToggleCompactMode,
+    ToggleDiffViewer,
     CyclePaneNext,
     CyclePanePrevious,
     LastPane,
@@ -714,6 +715,7 @@ fn action_for_key(
         (&kb.toggle_sidebar, NavigateAction::ToggleSidebar),
         (&kb.toggle_hide_sidebar, NavigateAction::ToggleHideSidebar),
         (&kb.toggle_compact_mode, NavigateAction::ToggleCompactMode),
+        (&kb.toggle_diff_viewer, NavigateAction::ToggleDiffViewer),
         (&kb.reload_config, NavigateAction::ReloadConfig),
         (
             &kb.open_notification_target,
@@ -760,6 +762,9 @@ pub(super) fn execute_navigate_action_in_context(
     action: NavigateAction,
     context: ActionContext,
 ) {
+    if state.mode == Mode::DiffViewer && action != NavigateAction::ToggleDiffViewer {
+        state.toggle_diff_viewer(terminal_runtimes);
+    }
     let previous_mode = state.mode;
     match action {
         NavigateAction::NewWorkspace => {
@@ -931,6 +936,9 @@ pub(super) fn execute_navigate_action_in_context(
             state.compact_mode = !state.compact_mode;
             state.sidebar_collapsed = false; // exit collapsed if active
             leave_navigate_mode(state);
+        }
+        NavigateAction::ToggleDiffViewer => {
+            state.toggle_diff_viewer(terminal_runtimes);
         }
         NavigateAction::CyclePaneNext => {
             state.cycle_pane(false);

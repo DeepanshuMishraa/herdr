@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use super::widgets::panel_contrast_fg;
-use crate::app::AppState;
+use crate::app::{state::Mode, AppState};
 use crate::terminal::TerminalRuntimeRegistry;
 
 const MIN_TAB_WIDTH: u16 = 8;
@@ -569,6 +569,44 @@ pub(super) fn render_tab_bar(
                 .set_symbol("…")
                 .set_style(Style::default().fg(p.overlay0));
         }
+    }
+
+    let mut is_git = app.mode == Mode::DiffViewer;
+    if !is_git {
+        if let Some(tab) = ws.tabs.get(ws.active_tab) {
+            let pane_id = tab.layout.focused();
+            if let Some(rt) =
+                app.runtime_for_pane_in_workspace(terminal_runtimes, active_ws_idx, pane_id)
+            {
+                if let Some(cwd) = rt.cwd() {
+                    is_git = crate::workspace::git_repo_root(&cwd).is_some();
+                }
+            }
+        }
+    }
+
+    let button_width = 9;
+    if is_git && area.width > button_width + 10 {
+        let button_x = area.x + area.width.saturating_sub(button_width);
+        let button_rect = Rect::new(button_x, content_area.y, button_width, 1);
+
+        let (icon_style, text_style) = if app.mode == Mode::DiffViewer {
+            (
+                Style::default().fg(p.panel_bg).bg(p.accent),
+                Style::default().fg(p.text).bg(p.surface0),
+            )
+        } else {
+            (
+                Style::default().fg(p.text).bg(p.surface1),
+                Style::default().fg(p.overlay1).bg(p.surface0),
+            )
+        };
+
+        let spans = vec![
+            Span::styled(" Δ ", icon_style),
+            Span::styled(" diff ", text_style),
+        ];
+        frame.render_widget(Paragraph::new(Line::from(spans)), button_rect);
     }
 }
 
